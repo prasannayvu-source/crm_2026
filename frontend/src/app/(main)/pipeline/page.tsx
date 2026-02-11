@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Loader2, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 // Define Lead Interface
 interface Lead {
@@ -11,7 +12,10 @@ interface Lead {
     parent_name: string;
     status: string;
     updated_at: string;
-    students: { grade_applying_for: string }[];
+    students?: {
+        grade_applying_for: string;
+        name: string;
+    }[];
 }
 
 // Define Columns State
@@ -73,7 +77,7 @@ export default function PipelinePage() {
 
         const { data, error } = await supabase
             .from('leads')
-            .select('id, parent_name, status, updated_at, students(grade_applying_for)')
+            .select('id, parent_name, status, updated_at, students(name, grade_applying_for)')
             .order('updated_at', { ascending: false });
 
         if (error) {
@@ -121,12 +125,17 @@ export default function PipelinePage() {
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        // Optimistic Update
+        if (source.droppableId === destination.droppableId) {
+            // Reordering within the same column (optional: handle visual reorder if needed)
+            // For now, no API call or state change for same-column reorder to avoid issues
+            return;
+        }
+
+        // Optimistic Update: Moving to a DIFFERENT column
         const startColumn = columns[source.droppableId];
         const finishColumn = columns[destination.droppableId];
         const lead = startColumn[source.index];
 
-        // Create new arrays
         const newStartList = Array.from(startColumn);
         newStartList.splice(source.index, 1);
 
@@ -141,19 +150,37 @@ export default function PipelinePage() {
 
         setColumns(newColumns);
 
-        // API Call
-        const { error } = await supabase
-            .from('leads')
-            .update({ status: destination.droppableId })
-            .eq('id', draggableId);
+        // API Call via Backend to trigger automations (Tasks, Interactions)
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-        if (error) {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/leads/${draggableId}/status?status=${destination.droppableId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update status');
+            }
+
+            toast.success(`Moved to ${STATUS_LABELS[destination.droppableId]}`);
+
+            // If we moved to 'Visit Scheduled', maybe show a toast about the task?
+            if (destination.droppableId === 'visit_scheduled') {
+                toast.success('Task created: Prepare for Visit', {
+                    description: 'Check your tasks list.'
+                });
+            }
+
+        } catch (error) {
             console.error('Error moving lead:', error);
             toast.error('Failed to move lead');
-            // Revert (simplified: just refetch for now to ensure consistency)
-            fetchLeads();
-        } else {
-            toast.success(`Moved to ${STATUS_LABELS[destination.droppableId]}`);
+            fetchLeads(); // Revert UI
         }
     };
 
@@ -270,7 +297,7 @@ export default function PipelinePage() {
                                                         {...provided.dragHandleProps}
                                                         className="glass-card"
                                                         style={{
-                                                            padding: '12px',
+                                                            padding: '0', // Remove padding from container to let Link fill it
                                                             background: snapshot.isDragging
                                                                 ? 'var(--color-bg-card-hover)'
                                                                 : 'var(--color-bg-card)',
@@ -280,29 +307,33 @@ export default function PipelinePage() {
                                                             boxShadow: snapshot.isDragging ? '0 10px 20px rgba(0,0,0,0.3)' : 'none'
                                                         }}
                                                     >
-                                                        <div style={{ paddingBottom: '6px', marginBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                            <h4 style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '2px' }}>{lead.parent_name}</h4>
-                                                            {lead.students && lead.students.length > 0 && (
-                                                                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                                                                    {lead.students[0].grade_applying_for}
-                                                                </p>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Footer / Badges */}
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
-                                                                <Clock size={12} />
-                                                                <span>{new Date(lead.updated_at).toLocaleDateString()}</span>
+                                                        <Link href={`/leads/${lead.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', padding: '12px' }}>
+                                                            <div style={{ paddingBottom: '6px', marginBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                                <h4 style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '2px' }}>{lead.parent_name}</h4>
+                                                                {lead.students && lead.students.length > 0 && (
+                                                                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                                                        {lead.students[0].name}
+                                                                        <br />
+                                                                        <span style={{ fontSize: '0.7rem' }}>{lead.students[0].grade_applying_for}</span>
+                                                                    </p>
+                                                                )}
                                                             </div>
 
-                                                            {isOverdue(lead) && (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#EF4444', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                                    <AlertCircle size={14} />
-                                                                    <span>Stall</span>
+                                                            {/* Footer / Badges */}
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
+                                                                    <Clock size={12} />
+                                                                    <span>{new Date(lead.updated_at).toLocaleDateString()}</span>
                                                                 </div>
-                                                            )}
-                                                        </div>
+
+                                                                {isOverdue(lead) && (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#EF4444', fontSize: '0.75rem', fontWeight: 600 }}>
+                                                                        <AlertCircle size={14} />
+                                                                        <span>Stall</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </Link>
                                                     </div>
                                                 )}
                                             </Draggable>

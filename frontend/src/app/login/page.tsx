@@ -66,9 +66,9 @@ export default function LoginPage() {
                         <Link href="/" style={{ fontSize: "1.5rem", fontWeight: "700", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "10px", color: "var(--color-text-primary)" }}>
                             {/* Logo Icon */}
                             <div style={{ width: "36px", height: "36px", background: "var(--color-accent-primary)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
-                                <span style={{ fontWeight: "800", fontSize: "1.2rem" }}>C</span>
+                                <span style={{ fontWeight: "800", fontSize: "1.2rem" }}>JV</span>
                             </div>
-                            <span className="text-gradient" style={{ fontSize: "1.25rem" }}>Chiranjeevi Kamasani CRM</span>
+                            <span className="text-gradient" style={{ fontSize: "1.25rem" }}>Jeevana Vidya Online School</span>
                         </Link>
                     </div>
 
@@ -147,7 +147,7 @@ export default function LoginPage() {
 
                 {/* Footer on the Left Side - Outside Card */}
                 <div className="auth-footer">
-                    <span>© 2026 CK CRM</span>
+                    <span>© 2026 Jeevana Vidya Online School</span>
                     <a href="#" style={{ color: "inherit", textDecoration: "none" }}>Privacy</a>
                     <a href="#" style={{ color: "inherit", textDecoration: "none" }}>Terms</a>
                 </div>

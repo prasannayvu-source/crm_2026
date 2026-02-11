@@ -102,9 +102,9 @@ export default function LeadsPage() {
                             className="glass-input"
                             style={{ width: 'auto', paddingRight: '32px' }}
                         >
-                            <option value="all" style={{ color: 'black' }}>All Statuses</option>
+                            <option value="all" style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>All Statuses</option>
                             {statuses.map(s => (
-                                <option key={s} value={s} style={{ color: 'black' }}>{s.replace('_', ' ')}</option>
+                                <option key={s} value={s} style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>{s.replace('_', ' ')}</option>
                             ))}
                         </select>
                     </div>

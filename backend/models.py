@@ -31,6 +31,7 @@ class Student(StudentBase):
     id: UUID
     lead_id: UUID
 
+
 class LeadBase(BaseModel):
     parent_name: str
     email: Optional[str] = None
@@ -38,6 +39,7 @@ class LeadBase(BaseModel):
     status: LeadStatus = LeadStatus.new
     source: LeadSource = LeadSource.website
     assigned_to: Optional[UUID] = None
+    last_interaction_at: Optional[datetime] = None
 
 class LeadCreate(LeadBase):
     students: List[StudentCreate] = []
@@ -72,6 +74,55 @@ class Task(TaskBase):
     lead_id: UUID
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class InteractionType(str, Enum):
+    call = "call"
+    meeting = "meeting"
+    email = "email"
+    note = "note"
+    status_change = "status_change"
+
+class InteractionOutcome(str, Enum):
+    connected = "connected"
+    no_answer = "no_answer"
+    voicemail = "voicemail"
+    positive = "positive"
+    negative = "negative"
+    scheduled = "scheduled"
+
+class InteractionBase(BaseModel):
+    type: InteractionType
+    outcome: Optional[InteractionOutcome] = None
+    summary: Optional[str] = None
+
+class InteractionCreate(InteractionBase):
+    lead_id: UUID
+
+class Interaction(InteractionBase):
+    id: UUID
+    lead_id: UUID
+    created_by: Optional[UUID] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class NotificationBase(BaseModel):
+    title: str
+    message: Optional[str] = None
+    link: Optional[str] = None
+    read: bool = False
+
+class NotificationCreate(NotificationBase):
+    user_id: UUID
+
+class Notification(NotificationBase):
+    id: UUID
+    user_id: UUID
+    created_at: datetime
 
     class Config:
         from_attributes = True

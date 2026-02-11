@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
+  /* Default to Dark Mode variables (matching current look) */
   --background: #0F1117;
   --foreground: #E5E7EB;
 
-  /* Custom Variables */
   --color-bg-app: #0F1117;
   --color-bg-card: rgba(255, 255, 255, 0.03);
   --color-border: rgba(255, 255, 255, 0.08);
@@ -12,20 +12,46 @@
   --color-text-primary: #E5E7EB;
   --color-text-secondary: #9CA3AF;
 
-  /* Professional SaaS Blue */
   --color-accent-primary: #2563EB;
   --color-accent-hover: #1d4ed8;
   --color-accent-secondary: #22C55E;
+
   --color-status-warning: #F59E0B;
   --color-status-danger: #EF4444;
 
   --font-body: 'Inter', sans-serif;
-
-  /* Spacing */
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 48px;
+}
+
+/* Light Mode Overrides */
+[data-theme='light'] {
+  --background: #F3F4F6;
+  --foreground: #111827;
+
+  --color-bg-app: #F3F4F6;
+  --color-bg-card: #FFFFFF;
+  --color-border: #E5E7EB;
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #6B7280;
+
+  /* Keep accents similar but readable on light */
+  --color-accent-primary: #2563EB;
+  --color-accent-hover: #1d4ed8;
+}
+
+/* Explicit Dark Mode Overrides (if needed for system preference triggering) */
+[data-theme='dark'] {
+  --background: #0F1117;
+  --foreground: #E5E7EB;
+  --color-bg-app: #0F1117;
+  --color-bg-card: rgba(255, 255, 255, 0.03);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #E5E7EB;
+  --color-text-secondary: #9CA3AF;
 }
 
 * {

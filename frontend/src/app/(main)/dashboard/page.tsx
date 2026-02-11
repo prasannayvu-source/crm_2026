@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, Plus, ArrowRight, UserPlus, Users, ListTodo, Calendar, Clock } from 'lucide-react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -220,12 +221,46 @@ export default function DashboardPage() {
                                     alignItems: 'flex-start',
                                     gap: '12px'
                                 }}>
-                                    <div style={{ marginTop: '2px', width: '18px', height: '18px', borderRadius: '4px', border: '2px solid var(--color-text-secondary)', cursor: 'pointer' }}></div>
+                                    <div
+                                        onClick={async () => {
+                                            const { error } = await supabase
+                                                .from('tasks')
+                                                .update({ status: 'completed' })
+                                                .eq('id', task.id);
+
+                                            if (!error) {
+                                                setTasks((prev: any[]) => prev.filter(t => t.id !== task.id));
+                                                // Update stats count
+                                                setStats((prev: any) => ({ ...prev, activeTasks: prev.activeTasks - 1 }));
+                                                toast.success("Task completed!");
+                                            }
+                                        }}
+                                        style={{
+                                            marginTop: '2px',
+                                            width: '18px',
+                                            height: '18px',
+                                            borderRadius: '4px',
+                                            border: '2px solid var(--color-text-secondary)',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-accent-secondary)';
+                                            e.currentTarget.style.background = 'rgba(34, 197, 94, 0.2)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.currentTarget.style.borderColor = 'var(--color-text-secondary)';
+                                            e.currentTarget.style.background = 'transparent';
+                                        }}
+                                    ></div>
                                     <div>
-                                        <p style={{ fontSize: '0.95rem', fontWeight: 500, color: 'white', marginBottom: '4px' }}>{task.title}</p>
+                                        <p style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: '4px' }}>{task.title}</p>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                                             <Calendar size={12} />
-                                            <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                                            <span>{new Date(task.due_date || task.created_at).toLocaleDateString()}</span>
                                         </div>
                                     </div>
                                 </div>

@@ -49,7 +49,7 @@ export default function SignupPage() {
                 <div className="auth-content">
                     <div style={{ marginBottom: "40px" }}>
                         <Link href="/" style={{ fontSize: "1.5rem", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "8px", color: "var(--color-text-primary)" }}>
-                            <span className="text-gradient">Chiranjeevi Kamasani CRM</span>
+                            <span className="text-gradient">Jeevana Vidya Online School</span>
                         </Link>
                     </div>
 

@@ -17,6 +17,17 @@ export default function NewLeadPage() {
         source: 'walk_in'
     });
     const [user, setUser] = useState<any>(null);
+    const [sourceOptions, setSourceOptions] = useState<string[]>(['website', 'walk_in', 'referral', 'social']);
+
+    useEffect(() => {
+        const loadSettings = async () => {
+            const { data } = await supabase.from('app_settings').select('value').eq('key', 'lead_sources').single();
+            if (data?.value) {
+                setSourceOptions(data.value as string[]);
+            }
+        }
+        loadSettings();
+    }, []);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -120,13 +131,15 @@ export default function NewLeadPage() {
                                 onChange={e => setFormData({ ...formData, source: e.target.value })}
                                 style={{ appearance: 'none' }}
                             >
-                                <option value="website" style={{ color: 'black' }}>Website</option>
-                                <option value="walk_in" style={{ color: 'black' }}>Walk In</option>
-                                <option value="referral" style={{ color: 'black' }}>Referral</option>
-                                <option value="social" style={{ color: 'black' }}>Social Media</option>
+                                {sourceOptions.map(opt => (
+                                    <option key={opt} value={opt} style={{ color: 'black' }}>
+                                        {opt.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
+
 
                     <button type="submit" className="btn-primary" disabled={loading || !user} style={{ justifyContent: 'center', marginTop: '8px' }}>
                         {loading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Create Lead'}

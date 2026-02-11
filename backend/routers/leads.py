@@ -75,6 +75,49 @@ async def get_lead(id: str, user=Depends(get_current_user)):
         
     return lead_data
 
+@router.patch("/{id}/status", response_model=Lead)
+async def update_lead_status(id: str, status: str, user=Depends(get_current_user)):
+    # 1. Update Status
+    response = supabase.table("leads").update({"status": status, "updated_at": "now()"}).eq("id", id).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    updated_lead = response.data[0]
+    
+    # 2. Log Interaction
+    try:
+        interaction_data = {
+            "lead_id": id,
+            "type": "status_change",
+            "summary": f"Status updated to {status.replace('_', ' ').title()}",
+            "created_by": user.id
+        }
+        supabase.table("interactions").insert(interaction_data).execute()
+    except Exception as e:
+        print(f"Error logging interaction: {e}")
+    
+    # 3. Automation: Auto-Task
+    try:
+        if status == "visit_scheduled":
+            task_data = {
+                "lead_id": id,
+                "title": "Prepare for Visit",
+                "description": "Ensure brochure packet and counseling room are ready.",
+                "status": "pending",
+                "assigned_to": updated_lead.get("assigned_to") or user.id
+                # due_date could be set to 24h before visit if we had visit date, 
+                # for now let's leave it null or set to tomorrow
+            }
+            supabase.table("tasks").insert(task_data).execute()
+    except Exception as e:
+        print(f"Error creating auto-task: {e}")
+
+    # Return updated lead with students
+    stud_res = supabase.table("students").select("*").eq("lead_id", id).execute()
+    updated_lead["students"] = stud_res.data if stud_res.data else []
+    
+    return updated_lead
+
 @router.patch("/{id}/assign")
 async def assign_lead(id: str, assigned_to: str, user=Depends(get_current_user)):
     # Simple role check - this logic could be moved to dependencies but is specific here

@@ -11,7 +11,7 @@ export default function Home() {
           <Link href="#" className="flex items-center gap-2">
             <Zap className="h-6 w-6 text-indigo-500" />
             <span className="text-xl font-bold text-gradient">
-              OnlyAI CRM
+              Jeevana Vidya Online School
             </span>
           </Link>
 
@@ -34,10 +34,10 @@ export default function Home() {
           <div className="hero-bg"></div>
           <div className="container">
             <h1 className="hero-title">
-              Streamline Your <span className="text-gradient">Admissions</span> Pipeline
+              Jeevana Vidya <span className="text-gradient">Online School</span>
             </h1>
             <p className="hero-subtitle">
-              Convert more leads, empower your counselors, and gain complete visibility into your enrollment process. The modern CRM for forward-thinking schools.
+              Integrative Education with Ethical Principles and Morals. The modern education platform for future leaders.
             </p>
             <div className="flex justify-center gap-4">
               <Link className="btn-primary" href="/signup" style={{ padding: '12px 32px', fontSize: '1.125rem' }}>
@@ -113,7 +113,7 @@ export default function Home() {
 
       <footer style={{ padding: '32px 0', borderTop: '1px solid var(--color-border)', marginTop: 'auto' }}>
         <div className="container flex items-center justify-between" style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-          <p>© 2026 OnlyAI CRM. All rights reserved.</p>
+          <p>© 2026 Jeevana Vidya Online School. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="#">Terms of Service</Link>
             <Link href="#">Privacy</Link>

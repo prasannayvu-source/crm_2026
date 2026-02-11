@@ -31,9 +31,14 @@ export default function LeadDetailPage() {
     const [showStudentModal, setShowStudentModal] = useState(false);
     const [newStudent, setNewStudent] = useState({ name: '', grade_applying_for: '', dob: '' });
 
-    // Notes State
-    const [notes, setNotes] = useState<any[]>([]);
+    // Timeline State
+    const [interactions, setInteractions] = useState<any[]>([]);
     const [newNote, setNewNote] = useState('');
+
+    // Call Modal State
+    const [showCallModal, setShowCallModal] = useState(false);
+    const [callOutcome, setCallOutcome] = useState('connected');
+    const [callSummary, setCallSummary] = useState('');
 
     const fetchTasks = async () => {
         if (!id) return;
@@ -45,14 +50,14 @@ export default function LeadDetailPage() {
         setTasks(data || []);
     };
 
-    const fetchNotes = async () => {
+    const fetchTimeline = async () => {
         if (!id) return;
         const { data } = await supabase
-            .from('notes')
+            .from('interactions')
             .select('*')
             .eq('lead_id', id)
             .order('created_at', { ascending: false });
-        setNotes(data || []);
+        setInteractions(data || []);
     };
 
     useEffect(() => {
@@ -83,19 +88,40 @@ export default function LeadDetailPage() {
         };
         fetchLead();
         fetchTasks();
-        fetchNotes();
+        fetchTimeline();
     }, [id]);
 
     const handleStatusUpdate = async (newStatus: string) => {
-        const { error } = await supabase
-            .from('leads')
-            .update({ status: newStatus })
-            .eq('id', id);
+        // Use the new API endpoint for status updates to trigger automations
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-        if (!error) {
+        try {
+            const response = await fetch(`${API_URL}/api/v1/leads/${id}/status?status=${newStatus}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error('Failed to update status');
+
             setStatus(newStatus);
             toast.success(`Status updated to ${newStatus.replace('_', ' ')}`);
-        } else {
+            fetchTimeline(); // Refresh timeline for status change log
+            // Check if automation created a task (e.g. visit scheduled) -> maybe refresh tasks too
+            if (newStatus === 'visit_scheduled') {
+                toast.success('Task created automatically');
+                // Poll for the new task twice to ensure we catch it after backend creation
+                setTimeout(fetchTasks, 500);
+                setTimeout(fetchTasks, 2000);
+            } else {
+                fetchTasks(); // Refresh anyway just in case
+            }
+
+        } catch (error) {
             toast.error("Failed to update status");
         }
     };
@@ -166,19 +192,51 @@ export default function LeadDetailPage() {
     const handleSaveNote = async () => {
         if (!newNote.trim()) return;
 
-        const { error } = await supabase.from('notes').insert([{
+        const { error } = await supabase.from('interactions').insert([{
             lead_id: id,
-            content: newNote,
+            type: 'note',
+            summary: newNote,
             created_by: (await supabase.auth.getUser()).data.user?.id
         }]);
 
         if (!error) {
             setNewNote('');
-            fetchNotes();
+            fetchTimeline();
             toast.success("Note saved");
         } else {
             console.error(error);
             toast.error("Failed to save note");
+        }
+    };
+
+    const handleLogCall = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const { error } = await supabase.from('interactions').insert([{
+            lead_id: id,
+            type: 'call',
+            outcome: callOutcome,
+            summary: callSummary,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+        }]);
+
+        if (!error) {
+            setShowCallModal(false);
+            setCallSummary('');
+            setCallOutcome('connected');
+            fetchTimeline();
+            toast.success("Call logged");
+        } else {
+            toast.error("Failed to log call");
+        }
+    };
+
+    // Helper to render icon for interaction
+    const getInteractionIcon = (type: string) => {
+        switch (type) {
+            case 'call': return <Phone size={16} />;
+            case 'note': return <Edit size={16} />; // StickyNote not imported, using Edit
+            case 'status_change': return <CheckCircle size={16} />; // RefreshCw better but not imported
+            default: return <CircleAlert size={16} />;
         }
     };
 
@@ -204,7 +262,7 @@ export default function LeadDetailPage() {
                         value={status}
                         onChange={(e) => handleStatusUpdate(e.target.value)}
                         className="glass-input"
-                        style={{ width: 'auto', paddingRight: '32px', color: 'white', background: 'rgba(255,255,255,0.1)' }}
+                        style={{ width: 'auto', paddingRight: '32px', color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}
                     >
                         {statuses.map(s => (
                             <option key={s} value={s} style={{ color: 'black' }}>{s.replace('_', ' ')}</option>
@@ -337,38 +395,72 @@ export default function LeadDetailPage() {
                     </div>
 
                     <div className="glass-card" style={{ padding: '24px', opacity: 0.9 }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Notes</h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Timeline</h3>
+                            <button
+                                onClick={() => setShowCallModal(true)}
+                                style={{ fontSize: '0.85rem', color: 'var(--color-accent-primary)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', gap: '4px' }}
+                            >
+                                <Phone size={14} /> Log Call
+                            </button>
+                        </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
-                            {notes.length === 0 ? (
-                                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', fontStyle: 'italic' }}>No notes yet.</p>
+                        {/* Add Note Input (Inline) */}
+                        <div style={{ marginBottom: '24px' }}>
+                            <textarea
+                                className="glass-input"
+                                rows={2}
+                                placeholder="Add a quick note..."
+                                style={{ resize: 'vertical', fontSize: '0.9rem' }}
+                                value={newNote}
+                                onChange={(e) => setNewNote(e.target.value)}
+                            ></textarea>
+                            <button
+                                className="btn-secondary"
+                                style={{ marginTop: '8px', width: '100%', padding: '8px' }}
+                                onClick={handleSaveNote}
+                            >
+                                Save Note
+                            </button>
+                        </div>
+
+                        {/* Timeline List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '400px', overflowY: 'auto' }}>
+                            {interactions.length === 0 ? (
+                                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', fontStyle: 'italic', textAlign: 'center' }}>No history yet.</p>
                             ) : (
-                                notes.map(note => (
-                                    <div key={note.id} style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)' }}>
-                                        <p style={{ fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{note.content}</p>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                            {new Date(note.created_at).toLocaleString()}
-                                        </p>
+                                interactions.map(item => (
+                                    <div key={item.id} style={{ display: 'flex', gap: '12px' }}>
+                                        <div style={{
+                                            width: '32px', height: '32px', borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            color: 'var(--color-text-secondary)', flexShrink: 0
+                                        }}>
+                                            {getInteractionIcon(item.type)}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                                <span style={{ fontWeight: 600, fontSize: '0.9rem', textTransform: 'capitalize' }}>
+                                                    {item.type.replace('_', ' ')}
+                                                    {item.outcome && <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)' }}> • {item.outcome}</span>}
+                                                </span>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                                                    {new Date(item.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <p style={{
+                                                fontSize: '0.9rem',
+                                                marginTop: '4px',
+                                                color: 'var(--color-text-primary)',
+                                                wordBreak: 'break-word',
+                                                whiteSpace: 'pre-wrap',
+                                                lineHeight: '1.5'
+                                            }}>{item.summary}</p>
+                                        </div>
                                     </div>
                                 ))
                             )}
                         </div>
-
-                        <textarea
-                            className="glass-input"
-                            rows={3}
-                            placeholder="Add a note..."
-                            style={{ resize: 'vertical' }}
-                            value={newNote}
-                            onChange={(e) => setNewNote(e.target.value)}
-                        ></textarea>
-                        <button
-                            className="btn-secondary"
-                            style={{ marginTop: '12px', width: '100%' }}
-                            onClick={handleSaveNote}
-                        >
-                            Save Note
-                        </button>
                     </div>
                 </div>
             </div>
@@ -385,7 +477,7 @@ export default function LeadDetailPage() {
                     justifyContent: 'center',
                     zIndex: 100
                 }}>
-                    <div className="glass-card" style={{ width: '400px', padding: '24px', background: '#0F1117', border: '1px solid var(--color-border)' }}>
+                    <div className="glass-card" style={{ width: '400px', padding: '24px', background: 'var(--color-bg-app)', border: '1px solid var(--color-border)' }}>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '16px' }}>New Task</h3>
                         <form onSubmit={handleAddTask} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div>
@@ -406,7 +498,6 @@ export default function LeadDetailPage() {
                                     className="glass-input"
                                     value={newTaskDate}
                                     onChange={e => setNewTaskDate(e.target.value)}
-                                    // Make date input readable in dark mode
                                     style={{ colorScheme: 'dark' }}
                                 />
                             </div>
@@ -422,7 +513,7 @@ export default function LeadDetailPage() {
             {/* Edit Lead Modal */}
             {showEditModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-                    <div className="glass-card" style={{ width: '500px', padding: '24px', background: '#0F1117', border: '1px solid var(--color-border)', position: 'relative' }}>
+                    <div className="glass-card" style={{ width: '500px', padding: '24px', background: 'var(--color-bg-app)', border: '1px solid var(--color-border)', position: 'relative' }}>
                         <button onClick={() => setShowEditModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer' }}><X size={20} /></button>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px' }}>Edit Lead Details</h3>
                         <form onSubmit={handleUpdateLead} style={{ display: 'grid', gap: '16px' }}>
@@ -442,7 +533,7 @@ export default function LeadDetailPage() {
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Source</label>
-                                <select className="glass-input" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })}>
+                                <select className="glass-input" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })} style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>
                                     <option value="website" style={{ color: 'black' }}>Website</option>
                                     <option value="walk_in" style={{ color: 'black' }}>Walk In</option>
                                     <option value="referral" style={{ color: 'black' }}>Referral</option>
@@ -461,7 +552,7 @@ export default function LeadDetailPage() {
             {/* Add Student Modal */}
             {showStudentModal && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-                    <div className="glass-card" style={{ width: '400px', padding: '24px', background: '#0F1117', border: '1px solid var(--color-border)', position: 'relative' }}>
+                    <div className="glass-card" style={{ width: '400px', padding: '24px', background: 'var(--color-bg-app)', border: '1px solid var(--color-border)', position: 'relative' }}>
                         <button onClick={() => setShowStudentModal(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer' }}><X size={20} /></button>
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px' }}>Add Student</h3>
                         <form onSubmit={handleAddStudent} style={{ display: 'grid', gap: '16px' }}>
@@ -480,6 +571,41 @@ export default function LeadDetailPage() {
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
                                 <button type="button" onClick={() => setShowStudentModal(false)} className="btn-secondary">Cancel</button>
                                 <button type="submit" className="btn-primary">Add Student</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Log Call Modal */}
+            {showCallModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+                    <div className="glass-card" style={{ width: '400px', padding: '24px', background: 'var(--color-bg-app)', border: '1px solid var(--color-border)' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '24px' }}>Log Call</h3>
+                        <form onSubmit={handleLogCall} style={{ display: 'grid', gap: '16px' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Outcome</label>
+                                <select className="glass-input" value={callOutcome} onChange={e => setCallOutcome(e.target.value)} style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>
+                                    <option value="connected" style={{ color: 'black' }}>Connected</option>
+                                    <option value="no_answer" style={{ color: 'black' }}>No Answer</option>
+                                    <option value="voicemail" style={{ color: 'black' }}>Voicemail</option>
+                                    <option value="scheduled" style={{ color: 'black' }}>Scheduled Follow-up</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Summary</label>
+                                <textarea
+                                    className="glass-input"
+                                    rows={3}
+                                    required
+                                    placeholder="What did you discuss?"
+                                    value={callSummary}
+                                    onChange={e => setCallSummary(e.target.value)}
+                                ></textarea>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                                <button type="button" onClick={() => setShowCallModal(false)} className="btn-secondary">Cancel</button>
+                                <button type="submit" className="btn-primary">Log Call</button>
                             </div>
                         </form>
                     </div>
