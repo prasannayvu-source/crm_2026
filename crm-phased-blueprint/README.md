@@ -57,11 +57,58 @@ This project is divided into 6 strict execution phases to ensure stability, test
 - Automated task creation based on status changes.
 - SLA monitoring and alerts.
 
-### [Phase 4: Reporting, Exports & Admin Config](./phase-4.md)
-**Goal**: Management confidence and operational control.
-- Deep analytics and performance reporting.
-- Data export capabilities (CSV/Excel).
-- Self-serve admin configuration.
+### [Phase 4: Analytics, Reports & Admin - Enterprise Grade](./phase-4.md) ⭐
+**Goal**: Transform CRM into complete management platform with pixel-perfect interfaces.
+
+**Inspiration**: PowerSchool, Canvas, Infinite Campus
+**Standards**: Pixel-perfect, responsive, accessible (WCAG 2.1 AA)
+
+#### Analytics Tab
+- **KPI Dashboard**: Real-time metrics with trend indicators
+- **Interactive Charts**: Lead volume, pipeline funnel, source analysis
+- **Counselor Performance**: Sortable grid with drill-down capability
+- **Alerts Rail**: At-risk leads and system notifications
+- **Filter System**: Multi-dimensional filtering with URL persistence
+
+#### Reports Tab
+- **3-Step Report Builder**:
+  - Step 1: Field selection with drag-and-drop
+  - Step 2: Layout configuration (grouping, sorting, filters)
+  - Step 3: Export & scheduling (CSV/PDF/Excel/Sheets)
+- **Scheduled Reports**: Automated email delivery
+- **Report History**: Track past runs and downloads
+- **Templates**: Pre-built report configurations
+
+#### Admin Tab
+- **User Management**:
+  - Bulk actions (activate, deactivate, delete)
+  - User impersonation for support
+  - Invitation system
+- **Roles & Permissions**:
+  - Permission matrix (View, Create, Edit, Delete, Export)
+  - Custom role creation
+  - Scope control (All, Team, Own)
+- **Integrations**:
+  - SMTP email configuration
+  - Google Workspace sync
+  - Webhooks for events
+  - API key management
+- **System Health**:
+  - Real-time performance metrics
+  - Database statistics
+  - Background job monitoring
+- **Audit Logs**:
+  - Complete activity trail
+  - Before/after change tracking
+  - Advanced search and filtering
+
+**Technical Highlights**:
+- Lazy-loaded charts for performance
+- Virtual scrolling for large tables
+- Redis caching (5 min TTL for KPIs)
+- Background job queue for exports
+- Comprehensive API documentation
+- Full accessibility compliance (WCAG 2.1 AA)
 
 ### [Phase 5: Scale Readiness & Future Integration](./phase-5.md)
 **Goal**: Prepare system for 10k → 100k+ parents.
