@@ -61,198 +61,290 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="auth-container">
-            {/* LEFT SIDE: Form */}
-            <div className="auth-form-side">
-                {/* Background Image for Left Panel */}
-                <div className="auth-bg-image" style={{ backgroundImage: "url('/images/Login_Background.webp')" }}></div>
+        <div style={{
+            minHeight: '100vh',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundImage: "url('/images/Login_Background.webp')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            position: 'relative',
+            overflow: 'hidden'
+        }}>
+            {/* Dark Overlay with Blur */}
+            <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'rgba(3, 7, 18, 0.8)', // Deep dark overlay
+                backdropFilter: 'blur(8px)',
+                zIndex: 1
+            }}></div>
 
-                {/* Overlay to Tint the Background */}
-                <div className="auth-bg-tint"></div>
-
-                {/* Login Card Container */}
-                <div className="auth-glass-card">
-                    <div style={{ marginBottom: "32px", textAlign: "center" }}>
-                        <Link href="/" style={{ fontSize: "1.5rem", fontWeight: "700", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "10px", color: "var(--color-text-primary)" }}>
-                            {/* Logo Icon */}
-                            <div style={{ width: "36px", height: "36px", background: "var(--color-accent-primary)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
-                                <span style={{ fontWeight: "800", fontSize: "1.2rem" }}>JV</span>
-                            </div>
-                            <span className="text-gradient" style={{ fontSize: "1.25rem" }}>Jeevana Vidya Online School</span>
-                        </Link>
+            {/* Main Card */}
+            <div className="glass-card" style={{
+                position: 'relative',
+                zIndex: 10,
+                width: '100%',
+                maxWidth: '440px',
+                padding: '48px 40px',
+                borderRadius: '24px',
+                background: 'rgba(17, 24, 39, 0.7)', // Darker glass
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+            }}>
+                {/* Logo Section */}
+                <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '12px',
+                        borderRadius: '16px',
+                        background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(37, 99, 235, 0.05))',
+                        marginBottom: '16px',
+                        border: '1px solid rgba(59, 130, 246, 0.2)'
+                    }}>
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            background: '#2563EB',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: '800',
+                            fontSize: '1.2rem',
+                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)'
+                        }}>
+                            JV
+                        </div>
                     </div>
-
-                    <div style={{ textAlign: "center", marginBottom: "32px" }}>
-                        <h1 style={{ fontSize: "2rem", fontWeight: "800", marginBottom: "8px", color: "var(--color-text-primary)", letterSpacing: "-0.5px" }}>Welcome back</h1>
-                        <p style={{ color: "var(--color-text-secondary)", fontSize: "1rem" }}>
-                            Please enter your details to access your account.
-                        </p>
-                    </div>
-
-                    {error && (
-                        <div style={{ padding: "12px", borderRadius: "8px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#fca5a5", fontSize: "0.9rem", marginBottom: "24px", textAlign: "center" }}>
-                            {error}
-                        </div>
-                    )}
-
-                    <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                        <div>
-                            <label style={{ display: "block", fontSize: "0.9rem", fontWeight: "500", color: "var(--color-text-primary)", marginBottom: "6px" }}>Email</label>
-                            <input
-                                type="email"
-                                required
-                                className="glass-input"
-                                placeholder="Enter your email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                style={{ padding: "12px 16px", fontSize: "0.95rem" }}
-                            />
-                        </div>
-
-                        <div>
-                            <label style={{ display: "block", fontSize: "0.9rem", fontWeight: "500", color: "var(--color-text-primary)", marginBottom: "6px" }}>Password</label>
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    className="glass-input"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    style={{ padding: "12px 40px 12px 16px", fontSize: "0.95rem", width: "100%" }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    style={{
-                                        position: 'absolute',
-                                        right: '12px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        color: 'var(--color-text-secondary)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.85rem" }}>
-                            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "var(--color-text-secondary)" }}>
-                                <input type="checkbox" style={{ accentColor: "var(--color-accent-primary)", width: "16px", height: "16px" }} />
-                                Remember me
-                            </label>
-                            <Link href="#" style={{ color: "var(--color-accent-primary)", fontWeight: "600" }}>Forgot password?</Link>
-                        </div>
-
-                        <button type="submit" className="btn-primary" disabled={loading} style={{ width: "100%", padding: "14px", fontSize: "1rem", fontWeight: "600", marginTop: "4px" }}>
-                            {loading ? <Loader2 className="animate-spin h-5 w-5 mx-auto" /> : "Sign in"}
-                        </button>
-                    </form>
-
-                    <div className="divider" style={{ margin: "24px 0" }}>
-                        <span style={{ fontSize: "0.85rem", color: "var(--color-text-secondary)" }}>Or continue with</span>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={handleGoogleLogin}
-                        className="btn-secondary"
-                        style={{ width: "100%", justifyContent: "center", background: "white", color: "#111827", borderColor: "#e5e7eb", fontWeight: "600", gap: "10px", padding: "12px", fontSize: "0.95rem" }}
-                    >
-                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style={{ width: "20px", height: "20px" }} />
-                        Sign in with Google
-                    </button>
-
-                    <p style={{ marginTop: "24px", textAlign: "center", color: "var(--color-text-secondary)", fontSize: "0.9rem" }}>
-                        Don&apos;t have an account?{" "}
-                        <Link href="/signup" style={{ color: "var(--color-accent-primary)", fontWeight: "600" }}>Sign up</Link>
+                    <h1 style={{
+                        fontSize: '1.875rem',
+                        fontWeight: '700',
+                        color: '#F9FAFB',
+                        letterSpacing: '-0.025em',
+                        marginBottom: '8px'
+                    }}>
+                        Welcome Back
+                    </h1>
+                    <p style={{ color: '#9CA3AF', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                        Sign in to manage your school operations
                     </p>
                 </div>
 
-                {/* Footer on the Left Side - Outside Card */}
-                <div className="auth-footer">
-                    <span>© 2026 Jeevana Vidya Online School</span>
-                    <a href="#" style={{ color: "inherit", textDecoration: "none" }}>Privacy</a>
-                    <a href="#" style={{ color: "inherit", textDecoration: "none" }}>Terms</a>
+                {error && (
+                    <div style={{
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        color: '#FCA5A5',
+                        fontSize: '0.875rem',
+                        marginBottom: '24px',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                    }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444' }}></div>
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div>
+                        <label style={{
+                            display: 'block',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            color: '#E5E7EB',
+                            marginBottom: '8px',
+                            marginLeft: '2px'
+                        }}>
+                            Email Address
+                        </label>
+                        <input
+                            type="email"
+                            required
+                            className="glass-input"
+                            placeholder="name@school.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            style={{
+                                background: 'rgba(0, 0, 0, 0.2)',
+                                borderColor: 'rgba(255, 255, 255, 0.1)',
+                                padding: '14px 16px',
+                                fontSize: '1rem'
+                            }}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={{
+                            display: 'block',
+                            fontSize: '0.875rem',
+                            fontWeight: '500',
+                            color: '#E5E7EB',
+                            marginBottom: '8px',
+                            marginLeft: '2px'
+                        }}>
+                            Password
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                required
+                                className="glass-input"
+                                placeholder="Enter your password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                style={{
+                                    background: 'rgba(0, 0, 0, 0.2)',
+                                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                                    padding: '14px 44px 14px 16px',
+                                    fontSize: '1rem'
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '12px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#9CA3AF',
+                                    padding: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'color 0.2s'
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.color = '#E5E7EB'}
+                                onMouseOut={(e) => e.currentTarget.style.color = '#9CA3AF'}
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '-4px' }}>
+                        <label style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            cursor: 'pointer',
+                            color: '#9CA3AF',
+                            fontSize: '0.875rem'
+                        }}>
+                            <input
+                                type="checkbox"
+                                style={{
+                                    accentColor: '#2563EB',
+                                    width: '16px',
+                                    height: '16px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                            Remember me
+                        </label>
+                        <Link
+                            href="#"
+                            style={{
+                                color: '#60A5FA',
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                transition: 'color 0.2s'
+                            }}
+                        >
+                            Forgot Password?
+                        </Link>
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={loading}
+                        style={{
+                            width: '100%',
+                            padding: '14px',
+                            fontSize: '1rem',
+                            fontWeight: '600',
+                            marginTop: '8px',
+                            background: '#2563EB',
+                            border: 'none',
+                            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1)',
+                            opacity: loading ? 0.7 : 1,
+                            cursor: loading ? 'not-allowed' : 'pointer'
+                        }}
+                    >
+                        {loading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Loader2 className="animate-spin" size={20} />
+                                <span>Signing in...</span>
+                            </div>
+                        ) : (
+                            "Sign In"
+                        )}
+                    </button>
+                </form>
+
+                <div className="divider" style={{ margin: '28px 0', opacity: 0.6 }}>
+                    <span style={{ color: '#6B7280', fontSize: '0.75rem', background: 'transparent' }}>OR CONTINUE WITH</span>
                 </div>
+
+                <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '12px',
+                        padding: '12px',
+                        background: 'white',
+                        color: '#1F2937',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.95rem',
+                        fontWeight: '600',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        transition: 'background 0.2s',
+                        opacity: loading ? 0.7 : 1
+                    }}
+                    onMouseOver={(e) => !loading && (e.currentTarget.style.background = '#F3F4F6')}
+                    onMouseOut={(e) => !loading && (e.currentTarget.style.background = 'white')}
+                >
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style={{ width: '20px', height: '20px' }} />
+                    Sign in with Google
+                </button>
             </div>
 
-            {/* RIGHT SIDE: Hero / Testimonial */}
-            <div className="auth-hero-side">
-                {/* Background Image */}
-                <div className="auth-bg-image" style={{ backgroundImage: "url('/images/campus-hero.jpg')", filter: "brightness(0.95)" }}></div>
-
-                {/* Overlay */}
-                <div className="auth-hero-overlay"></div>
-
-                {/* Content Container */}
-                <div className="auth-hero-content">
-                    {/* LEFT: Founder Profile (Anchored) */}
-                    <div className="founder-profile">
-                        {/* Founder Image */}
-                        <div className="founder-image-wrapper">
-                            <img
-                                src="/images/founder.jpg"
-                                alt="Chiranjeevi Kamasani"
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                        </div>
-
-                        {/* Founder Info */}
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                            <span style={{
-                                color: "white",
-                                fontWeight: "700",
-                                fontSize: "1.1rem",
-                                letterSpacing: "-0.5px"
-                            }}>
-                                Chiranjeevi Kamasani
-                            </span>
-                            <span style={{
-                                color: "#93C5FD",
-                                textTransform: "uppercase",
-                                fontSize: "0.75rem",
-                                fontWeight: "600",
-                                letterSpacing: "1px"
-                            }}>
-                                Founder & Visionary
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* RIGHT: Vision & Message (Content) */}
-                    <div style={{
-                        maxWidth: "550px",
-                        textAlign: "right",
-                        textShadow: "0 2px 10px rgba(0,0,0,0.8)"
-                    }}>
-                        <h2 style={{
-                            color: "white",
-                            fontSize: "2.25rem",
-                            fontWeight: "800",
-                            lineHeight: "1.2",
-                            marginBottom: "16px"
-                        }}>
-                            Where Future Leaders <br />
-                            <span style={{ color: "#60A5FA" }}>Are Forged.</span>
-                        </h2>
-                        <p style={{
-                            color: "rgba(255,255,255,0.9)",
-                            fontSize: "1.05rem",
-                            lineHeight: "1.6",
-                            fontWeight: "400"
-                        }}>
-                            &quot;We don&apos;t just teach syllabus; we ignite curiosity. With world-class infrastructure and a culture of excellence, this school is a launchpad for greatness.&quot;
-                        </p>
-                    </div>
-                </div>
+            {/* Simple Footer */}
+            <div style={{
+                position: 'absolute',
+                bottom: '24px',
+                zIndex: 10,
+                color: '#6B7280',
+                fontSize: '0.75rem',
+                display: 'flex',
+                gap: '24px'
+            }}>
+                <span>© 2026 Jeevana Vidya Online School</span>
+                <a href="#" style={{ color: '#9CA3AF' }}>Privacy Policy</a>
+                <a href="#" style={{ color: '#9CA3AF' }}>Terms of Service</a>
             </div>
         </div>
     );

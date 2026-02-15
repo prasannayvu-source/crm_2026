@@ -556,10 +556,7 @@ export default function AdminPage() {
                                                         style={{ color: '#EF4444', borderColor: '#EF4444' }}
                                                         onClick={async () => {
                                                             if (confirm('Are you sure you want to delete this user?')) {
-                                                                // Call delete API (mock for now or implement)
-                                                                // Assuming delete logic exists or will be added
-                                                                // Just UI implementation here
-                                                                toast.info("Delete functionality requires API");
+                                                                await handleDeleteUser(user.id);
                                                             }
                                                         }}
                                                     >
