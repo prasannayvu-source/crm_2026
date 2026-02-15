@@ -24,6 +24,7 @@
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 48px;
+  --color-bg-option: #1F2937;
 }
 
 /* Light Mode Overrides */
@@ -41,6 +42,7 @@
   /* Keep accents similar but readable on light */
   --color-accent-primary: #2563EB;
   --color-accent-hover: #1d4ed8;
+  --color-bg-option: #FFFFFF;
 }
 
 /* Explicit Dark Mode Overrides (if needed for system preference triggering) */
@@ -105,6 +107,11 @@ a:hover {
   border-color: var(--color-accent-primary);
   background: rgba(255, 255, 255, 0.05);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.glass-input option {
+  background-color: var(--color-bg-option);
+  color: var(--color-text-primary);
 }
 
 .btn-primary {

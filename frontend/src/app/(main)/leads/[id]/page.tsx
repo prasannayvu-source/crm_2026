@@ -40,6 +40,31 @@ export default function LeadDetailPage() {
     const [callOutcome, setCallOutcome] = useState('connected');
     const [callSummary, setCallSummary] = useState('');
 
+
+
+    // Permission State
+    const [canEdit, setCanEdit] = useState(false);
+
+    useEffect(() => {
+        async function checkPermission() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/v1/auth/me', {
+                    headers: { Authorization: `Bearer ${session.access_token}` }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.permissions && (user.permissions['*'] || user.permissions['leads.edit'])) {
+                        setCanEdit(true);
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        checkPermission();
+    }, []);
+
     const fetchTasks = async () => {
         if (!id) return;
         const { data } = await supabase
@@ -261,20 +286,23 @@ export default function LeadDetailPage() {
                     <select
                         value={status}
                         onChange={(e) => handleStatusUpdate(e.target.value)}
+                        disabled={!canEdit}
                         className="glass-input"
-                        style={{ width: 'auto', paddingRight: '32px', color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}
+                        style={{ width: 'auto', paddingRight: '32px', color: 'var(--color-text-primary)', background: 'var(--color-bg-card)', opacity: canEdit ? 1 : 0.6, cursor: canEdit ? 'pointer' : 'not-allowed' }}
                     >
                         {statuses.map(s => (
-                            <option key={s} value={s} style={{ color: 'black' }}>{s.replace('_', ' ')}</option>
+                            <option key={s} value={s}>{s.replace('_', ' ')}</option>
                         ))}
                     </select>
-                    <button
-                        className="btn-primary"
-                        style={{ padding: '8px 16px', fontSize: '0.9rem' }}
-                        onClick={() => setShowEditModal(true)}
-                    >
-                        <Edit size={16} /> Edit Lead
-                    </button>
+                    {canEdit && (
+                        <button
+                            className="btn-primary"
+                            style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                            onClick={() => setShowEditModal(true)}
+                        >
+                            <Edit size={16} /> Edit Lead
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -309,12 +337,14 @@ export default function LeadDetailPage() {
                             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <CheckCircle size={18} /> Students
                             </h3>
-                            <button
-                                style={{ background: 'transparent', border: 'none', color: 'var(--color-accent-primary)', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                onClick={() => setShowStudentModal(true)}
-                            >
-                                <Plus size={16} /> Add Student
-                            </button>
+                            {canEdit && (
+                                <button
+                                    style={{ background: 'transparent', border: 'none', color: 'var(--color-accent-primary)', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    onClick={() => setShowStudentModal(true)}
+                                >
+                                    <Plus size={16} /> Add Student
+                                </button>
+                            )}
                         </div>
 
                         {lead.students && lead.students.length > 0 ? (
@@ -533,11 +563,11 @@ export default function LeadDetailPage() {
                             </div>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Source</label>
-                                <select className="glass-input" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })} style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>
-                                    <option value="website" style={{ color: 'black' }}>Website</option>
-                                    <option value="walk_in" style={{ color: 'black' }}>Walk In</option>
-                                    <option value="referral" style={{ color: 'black' }}>Referral</option>
-                                    <option value="social" style={{ color: 'black' }}>Social Media</option>
+                                <select className="glass-input" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })}>
+                                    <option value="website">Website</option>
+                                    <option value="walk_in">Walk In</option>
+                                    <option value="referral">Referral</option>
+                                    <option value="social">Social Media</option>
                                 </select>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
@@ -585,11 +615,11 @@ export default function LeadDetailPage() {
                         <form onSubmit={handleLogCall} style={{ display: 'grid', gap: '16px' }}>
                             <div>
                                 <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-text-secondary)' }}>Outcome</label>
-                                <select className="glass-input" value={callOutcome} onChange={e => setCallOutcome(e.target.value)} style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>
-                                    <option value="connected" style={{ color: 'black' }}>Connected</option>
-                                    <option value="no_answer" style={{ color: 'black' }}>No Answer</option>
-                                    <option value="voicemail" style={{ color: 'black' }}>Voicemail</option>
-                                    <option value="scheduled" style={{ color: 'black' }}>Scheduled Follow-up</option>
+                                <select className="glass-input" value={callOutcome} onChange={e => setCallOutcome(e.target.value)}>
+                                    <option value="connected">Connected</option>
+                                    <option value="no_answer">No Answer</option>
+                                    <option value="voicemail">Voicemail</option>
+                                    <option value="scheduled">Scheduled Follow-up</option>
                                 </select>
                             </div>
                             <div>

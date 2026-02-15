@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, LogOut, Loader2, Shield, Kanban, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Loader2, Shield, Kanban, Moon, Sun, BarChart3, TrendingUp, FileText, Settings } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 import { useTheme } from '../theme-provider';
@@ -33,6 +33,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 .single();
             setRole(profile?.role);
 
+            // 🚀 PRE-WARM: Make a lightweight API call to populate backend auth cache
+            // This ensures the first Analytics page load is fast!
+            const token = session.access_token;
+            fetch('/api/v1/analytics/alerts', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => { }); // Silently fail if it errors
+
             setLoading(false);
         };
         checkUser();
@@ -49,6 +56,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         { name: 'Pipeline', href: '/pipeline', icon: Kanban },
     ];
 
+    // Add Manager Dashboard for managers and admins
+    if (role === 'manager' || role === 'admin') {
+        navItems.push({ name: 'Manager', href: '/manager', icon: BarChart3 });
+    }
+
+    // Add Analytics for all roles
+    navItems.push({ name: 'Analytics', href: '/analytics', icon: TrendingUp });
+
+    // Add Reports for all roles
+    navItems.push({ name: 'Reports', href: '/reports', icon: FileText });
+
+    // Add Admin for admins only
+    if (role === 'admin') {
+        navItems.push({ name: 'Admin', href: '/admin', icon: Settings });
+    }
 
 
     if (loading) {

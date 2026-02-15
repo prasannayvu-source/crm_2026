@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Loader2, AlertTriangle, TrendingUp, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,46 +30,80 @@ export default function ManagerDashboard() {
         return true;
     });
 
+    const [authorized, setAuthorized] = useState(false);
+    const router = useRouter();
+    // Use relative path to leverage Next.js proxy
+    const API_URL = '/api/v1';
+
     useEffect(() => {
-        const fetchReportData = async () => {
+        const checkAccessAndFetch = async () => {
+            // 1. Check Access
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                toast.error('Authentication error');
+                router.push('/login');
                 return;
             }
+
             const token = session.access_token;
-
             try {
-                const [summaryRes, agingRes] = await Promise.all([
-                    fetch(`${API_URL}/pipeline/summary`, { headers: { Authorization: `Bearer ${token}` } }),
-                    fetch(`${API_URL}/pipeline/aging?threshold_days=3`, { headers: { Authorization: `Bearer ${token}` } })
-                ]);
+                // Determine Role
+                const authRes = await fetch(`${API_URL}/auth/me`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    cache: 'no-store'
+                });
 
-                if (summaryRes.ok) {
-                    const summaryData = await summaryRes.json();
-                    setSummary(summaryData);
-                    localStorage.setItem('pipeline_summary', JSON.stringify(summaryData));
+                if (authRes.ok) {
+                    const user = await authRes.json();
+                    if (user.role !== 'admin' && user.role !== 'manager') {
+                        toast.error('Access Denied: Managers only');
+                        router.push('/dashboard');
+                        return;
+                    }
+                    setAuthorized(true);
+                } else {
+                    router.push('/dashboard');
+                    return;
                 }
 
-                if (agingRes.ok) {
-                    const agingData = await agingRes.json();
-                    setAgingLeads(agingData || []);
-                    localStorage.setItem('pipeline_aging', JSON.stringify(agingData));
+                // 2. Fetch Data (Only if authorized)
+                setLoading(true);
+                try {
+                    const [summaryRes, agingRes] = await Promise.all([
+                        fetch(`${API_URL}/pipeline/summary`, { headers: { Authorization: `Bearer ${token}` } }),
+                        fetch(`${API_URL}/pipeline/aging?threshold_days=3`, { headers: { Authorization: `Bearer ${token}` } })
+                    ]);
+
+                    if (summaryRes.ok) {
+                        const summaryData = await summaryRes.json();
+                        setSummary(summaryData);
+                        localStorage.setItem('pipeline_summary', JSON.stringify(summaryData));
+                    }
+
+                    if (agingRes.ok) {
+                        const agingData = await agingRes.json();
+                        setAgingLeads(agingData || []);
+                        localStorage.setItem('pipeline_aging', JSON.stringify(agingData));
+                    }
+                } catch (err) {
+                    console.error('Fetch error:', err);
+                    if (summary.length === 0) toast.error('Failed to update dashboard');
+                } finally {
+                    setLoading(false);
                 }
 
             } catch (err) {
-                console.error(err);
-                // Silent fail is better for background updates if we have cache
-                if (summary.length === 0) toast.error('Failed to load reports');
-            } finally {
-                setLoading(false);
+                console.error('Auth check error:', err);
+                router.push('/dashboard');
             }
         };
 
-        fetchReportData();
+        checkAccessAndFetch();
     }, []);
 
-    if (loading) {
+    if (loading || !authorized) {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
                 <Loader2 className="animate-spin h-8 w-8 text-indigo-500" />

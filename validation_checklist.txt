@@ -1,0 +1,121 @@
+[TESTING & VALIDATION CHECKLIST - JEEVANA VIDYA ONLINE SCHOOL CRM]
+
+1) ADMIN TAB (Access restricted to 'Admin' Role ONLY)
+=========================================================================================
+
+[ ] A. ACCESS CONTROL & SECURITY (Primary Validation)
+    -----------------------------------------------------
+    1. [ ] Login as ADMIN (`prasannayvu@gmail.com`):
+           - Expected: Main Sidebar shows 'Admin' tab near bottom.
+           - Action: Click 'Admin'.
+           - Expected: Loads `/admin` page. Title 'Admin Console' appears.
+    
+    2. [ ] Login as MANAGER:
+           - Expected: Main Sidebar does NOT show 'Admin' tab.
+           - Action: Manually type `http://localhost:3000/admin`.
+           - Expected: Immediate redirect to `/dashboard`. NO access denied popup (silent redirect).
+    
+    3. [ ] Login as COUNSELOR (`chirupreetham@gmail.com`):
+           - Expected: Same restrictive behavior as Manager.
+
+[ ] B. USER MANAGEMENT (Sub-Tab: 'Users')
+    -----------------------------------------------------
+    1. [ ] Check UI Elements:
+           - [ ] 'User Management' title is visible.
+           - [ ] 'Add User' button is visible (Top Right).
+           - [ ] Table Headers present: NAME, EMAIL, ROLE, STATUS, LAST LOGIN, ACTIONS.
+    
+    2. [ ] Verify Data Loading:
+           - [ ] Table is populated with user list (e.g., `prasannayvu`, `postforchiranjeevi`).
+           - [ ] Roles are correct (Admin vs Counselor vs Manager).
+           - [ ] Status badges (Active/Inactive) are colored correctly.
+
+    3. [ ] Verify Interaction:
+           - [ ] Hover over rows (highlight effect).
+           - [ ] Click 'Add User' -> Verify Modal Opens.
+           - [ ] Fill Form (Name, Email, Password, Role) -> Click 'Create User'.
+           - [ ] Verify Success Toast appears.
+           - [ ] Verify new user appears in the list immediately.
+           - [ ] Click 'Edit' button on a user -> Verify Modal Opens with pre-filled data.
+           - [ ] Change Role or Status -> Click 'Save Changes'.
+           - [ ] Verify Success Toast and List update.
+
+[ ] C. ROLES & PERMISSIONS (Sub-Tab: 'Roles & Permissions')
+    -----------------------------------------------------
+    1. [ ] Navigation:
+           - Action: Click 'Roles & Permissions' in the inner sidebar.
+    2. [ ] Content Verification:
+           - [ ] Page title updates/Tabs switch.
+           - [ ] List of defined roles (Admin, Manager, Counselor) is displayed.
+    3. [ ] Create Role:
+           - [ ] Click 'Create Role' -> Verify Modal Opens.
+           - [ ] Enter Role Name & Desc -> Click Create.
+           - [ ] Verify Success Toast.
+           - [ ] Verify new role appears in the card grid.
+
+[ ] D. SYSTEM INTEGRATIONS (Sub-Tab: 'Integrations')
+    -----------------------------------------------------
+    1. [ ] Navigation:
+           - Action: Click 'Integrations' in inner sidebar.
+    2. [ ] Content Verification:
+           - [ ] Integration panels (Email, SMS, Payment) load.
+    3. [ ] Configuration:
+           - [ ] Click 'Configure' on SMTP -> Modal Opens.
+           - [ ] Enter Dummy API Key -> Click 'Check & Save'.
+           - [ ] Verify Success Toast.
+           - [ ] Verify Button text changes to 'Configured' and Border turns Green.
+
+[ ] E. SYSTEM HEALTH (Sub-Tab: 'System Health')
+    -----------------------------------------------------
+    1. [ ] Navigation:
+           - Action: Click 'System Health'.
+    2. [ ] Metrics Validity:
+           - [ ] CPU Usage: Shows valid % (or 0.0% if local fallback).
+           - [ ] Memory Usage: Shows valid %.
+           - [ ] Database Connection: Shows 'Healthy' or connected status.
+    3. [ ] Auto-Refresh:
+           - [ ] Verify values update strictly on refresh or interval.
+
+[ ] F. AUDIT LOGS (Sub-Tab: 'Audit Logs')
+    -----------------------------------------------------
+    1. [ ] Navigation:
+           - Action: Click 'Audit Logs'.
+    2. [ ] Content Verification:
+           - [ ] Log table appears.
+           - [ ] timestamps are readable.
+           - [ ] Actions (e.g., "User Login", "Role Update") are listed.
+
+
+2) REPORTS TAB (Access available to All Roles)
+=========================================================================================
+[ ] A. Report Generation
+    - Select Report Type -> Click Generate.
+    - Verify data table populates.
+[ ] B. Filters
+    - Apply Date Range -> Click Update.
+    - Verify data refreshes to match dates.
+[ ] C. Export
+    - Click 'Export to CSV'.
+    - Verify file downloads and opens correctly.
+
+
+3) ANALYTICS TAB (Access available to All Roles)
+=========================================================================================
+[ ] A. KPI Cards
+    - Verify 'Total Leads' matches active count.
+    - Verify 'Active Tasks' matches to-do list.
+    - Verify 'Conversion Rate' calculation.
+[ ] B. Charts
+    - Verify 'Leads Over Time' graph renders.
+    - Verify 'Conversion Funnel' renders.
+    - Check tooltips on hover.
+
+
+4) MANAGER TAB (Access restricted to 'Admin' & 'Manager')
+=========================================================================================
+[ ] A. Access Control
+    - Login as Admin/Manager -> Page Loads.
+    - Login as Counselor -> Redirects to Dashboard.
+[ ] B. Dashboard Widgets
+    - Verify 'Pipeline Volume' chart matches lead stages.
+    - Verify 'Stalled Leads' list shows inactive leads (>3 days).

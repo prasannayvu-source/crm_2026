@@ -37,6 +37,42 @@ export default function DashboardPage() {
         return true;
     });
 
+    const [canCreateLead, setCanCreateLead] = useState(false);
+
+    useEffect(() => {
+        async function checkPermission() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/v1/auth/me', {
+                    headers: { Authorization: `Bearer ${session.access_token}` }
+                });
+                if (res.status === 401) {
+                    console.log('Dashboard: Session expired (401), redirecting to login');
+                    await supabase.auth.signOut();
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (res.status === 403) {
+                    console.warn('Dashboard: Access Denied (403), user not in whitelist');
+                    await supabase.auth.signOut();
+                    window.location.href = '/login?error=access_denied';
+                    return;
+                }
+
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.permissions && (user.permissions['*'] || user.permissions['leads.create'])) {
+                        setCanCreateLead(true);
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        checkPermission();
+    }, []);
+
     useEffect(() => {
         const fetchData = async () => {
             // Fetch total leads
@@ -103,10 +139,12 @@ export default function DashboardPage() {
                     <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginBottom: '4px' }}>Dashboard</h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Welcome back, here&apos;s what&apos;s happening today.</p>
                 </div>
-                <Link href="/leads/new" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Plus size={20} />
-                    New Lead
-                </Link>
+                {canCreateLead && (
+                    <Link href="/leads/new" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Plus size={20} />
+                        New Lead
+                    </Link>
+                )}
             </header>
 
             {/* Stats Grid */}

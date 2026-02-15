@@ -25,37 +25,83 @@ export default function LeadsPage() {
     // Simple statuses for filter
     const statuses = ['new', 'attempted_contact', 'connected', 'visit_scheduled', 'application_submitted', 'enrolled', 'lost'];
     const [searchQuery, setSearchQuery] = useState('');
+    const [canCreateLead, setCanCreateLead] = useState(false);
+
+    useEffect(() => {
+        async function checkPermission() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            try {
+                const res = await fetch('http://localhost:8000/api/v1/auth/me', {
+                    headers: { Authorization: `Bearer ${session.access_token}` }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.permissions && (user.permissions['*'] || user.permissions['leads.create'])) {
+                        setCanCreateLead(true);
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        checkPermission();
+    }, []);
 
     useEffect(() => {
         const fetchLeads = async () => {
-            // If we have cached data, we don't need to show a spinner for background refetch
-            // But if we are filtering, we might want to show some indication or just let it swap
             if (leads.length === 0) setLoading(true);
 
-            let query = supabase
-                .from('leads')
-                .select('*')
-                .order('created_at', { ascending: false });
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    console.error("No session found");
+                    setLeads([]);
+                    setLoading(false);
+                    return;
+                }
 
-            if (filterStatus !== 'all') {
-                query = query.eq('status', filterStatus);
-            }
+                const params = new URLSearchParams();
+                if (filterStatus !== 'all') params.append('status', filterStatus);
+                if (searchQuery) params.append('search', searchQuery);
 
-            if (searchQuery) {
-                query = query.or(`parent_name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
-            }
+                const response = await fetch(`http://localhost:8000/api/v1/leads/?${params.toString()}`, {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                });
 
-            const { data, error } = await query;
-            if (error) {
-                console.error('Error fetching leads:', error);
-            } else {
+                if (response.status === 403) {
+                    console.warn("User does not have permission to view leads.");
+                    setLeads([]);
+                    setLoading(false);
+                    return;
+                }
+
+                if (response.status === 401) {
+                    console.log('Leads: Session expired (401), redirecting to login');
+                    const { error } = await supabase.auth.signOut();
+                    // Use window.location because router might be unmounted if error boundary hits? No, safe to use router.
+                    window.location.href = '/login';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
                 setLeads(data || []);
-                // Only cache the "default" view to avoid saving a filtered list as the main list
+
+                // Cache default view
                 if (filterStatus === 'all' && searchQuery === '') {
                     localStorage.setItem('leads_list', JSON.stringify(data || []));
                 }
+            } catch (error) {
+                console.error('Error fetching leads:', error);
+                setLeads([]); // Clear leads on error (e.g. 403 Forbidden)
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
 
         // Debounce search
@@ -73,10 +119,12 @@ export default function LeadsPage() {
                     <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginBottom: '4px' }}>Leads</h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Manage and track your admissions pipeline.</p>
                 </div>
-                <Link href="/leads/new" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Plus size={20} />
-                    Add Lead
-                </Link>
+                {canCreateLead && (
+                    <Link href="/leads/new" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Plus size={20} />
+                        Add Lead
+                    </Link>
+                )}
             </header>
 
             {/* Filters & Search Bar */}
@@ -102,9 +150,9 @@ export default function LeadsPage() {
                             className="glass-input"
                             style={{ width: 'auto', paddingRight: '32px' }}
                         >
-                            <option value="all" style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>All Statuses</option>
+                            <option value="all">All Statuses</option>
                             {statuses.map(s => (
-                                <option key={s} value={s} style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-card)' }}>{s.replace('_', ' ')}</option>
+                                <option key={s} value={s}>{s.replace('_', ' ')}</option>
                             ))}
                         </select>
                     </div>

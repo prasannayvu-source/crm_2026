@@ -4,7 +4,7 @@ from uuid import UUID
 from datetime import datetime, timedelta, timezone
 from database import get_db
 from models import Lead, LeadStatus, PipelineSummary
-from dependencies import get_current_user, require_role
+from dependencies import get_current_user, require_role, require_permission
 
 router = APIRouter(
     prefix="/api/v1/pipeline",
@@ -14,7 +14,7 @@ router = APIRouter(
 
 @router.get("/summary", response_model=List[PipelineSummary])
 async def get_pipeline_summary(
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["admin", "manager"])),
     db=Depends(get_db)
 ):
     """
@@ -72,7 +72,7 @@ async def get_pipeline_summary(
 async def bulk_assign_leads(
     lead_ids: List[UUID],
     new_owner_id: UUID,
-    current_user: dict = Depends(require_role(["admin", "manager"])),
+    current_user: dict = Depends(require_permission("leads.assign")),
     db=Depends(get_db)
 ):
     """
@@ -88,7 +88,7 @@ async def bulk_assign_leads(
 @router.get("/aging")
 async def get_aging_report(
     threshold_days: int = 3,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["admin", "manager"])),
     db=Depends(get_db)
 ):
     """

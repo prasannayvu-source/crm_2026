@@ -31,12 +31,25 @@ export default function NewLeadPage() {
 
     useEffect(() => {
         const fetchUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
                 router.push('/login');
                 return;
             }
-            setUser(user);
+
+            // Check permission
+            const res = await fetch('http://localhost:8000/api/v1/auth/me', {
+                headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+            if (res.ok) {
+                const userData = await res.json();
+                if (!userData.permissions?.['*'] && !userData.permissions?.['leads.create']) {
+                    alert("You do not have permission to create leads.");
+                    router.push('/leads');
+                    return;
+                }
+                setUser(userData);
+            }
         };
         fetchUser();
     }, [router]);
@@ -45,35 +58,43 @@ export default function NewLeadPage() {
         e.preventDefault();
         setLoading(true);
 
-        if (!user) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            alert("Session expired. Please login again.");
+            router.push('/login');
+            return;
+        }
 
-        console.log("Creating lead with:", {
-            parent_name: formData.parent_name,
-            email: formData.email,
-            phone: formData.phone,
-            status: formData.status,
-            source: formData.source,
-            created_by: user.id,
-            assigned_to: user.id
-        });
+        try {
+            const response = await fetch('http://localhost:8000/api/v1/leads/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                    parent_name: formData.parent_name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    status: formData.status,
+                    source: formData.source,
+                    students: [] // API expects students list or handles empty
+                })
+            });
 
-        const { data, error } = await supabase.from('leads').insert([{
-            parent_name: formData.parent_name,
-            email: formData.email,
-            phone: formData.phone,
-            status: formData.status,
-            source: formData.source,
-            created_by: user.id,
-            assigned_to: user.id
-        }]).select();
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to create lead');
+            }
 
-        if (error) {
-            console.error(error);
-            alert('Error creating lead: ' + error.message);
-            setLoading(false);
-        } else {
+            const data = await response.json();
             console.log("Success:", data);
             router.push('/leads');
+        } catch (error: any) {
+            console.error(error);
+            alert('Error creating lead: ' + error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -132,7 +153,7 @@ export default function NewLeadPage() {
                                 style={{ appearance: 'none' }}
                             >
                                 {sourceOptions.map(opt => (
-                                    <option key={opt} value={opt} style={{ color: 'black' }}>
+                                    <option key={opt} value={opt}>
                                         {opt.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                     </option>
                                 ))}
