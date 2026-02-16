@@ -31,7 +31,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 .select('role')
                 .eq('id', session.user.id)
                 .single();
-            setRole(profile?.role);
+
+            if (!profile) {
+                await supabase.auth.signOut();
+                router.push('/login?error=access_denied');
+                return;
+            }
+
+            setRole(profile.role);
 
             // 🚀 PRE-WARM: Make a lightweight API call to populate backend auth cache
             // This ensures the first Analytics page load is fast!

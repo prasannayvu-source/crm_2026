@@ -211,9 +211,8 @@ export default function AdminPage() {
                 const userData = await response.json();
                 setCurrentUser(userData);
 
-                // Allow access if role is admin OR has any explicit permissions (Custom Roles)
-                const hasAccess = userData.role === 'admin' ||
-                    (userData.permissions && Object.keys(userData.permissions).length > 0);
+                // Strict Admin Access Check
+                const hasAccess = userData.role === 'admin';
 
                 if (!hasAccess) {
                     router.push('/dashboard');

@@ -1,125 +1,317 @@
 'use client';
+
 import Link from "next/link";
-import { ArrowRight, BarChart3, Users, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Users, Zap, Shield, CheckCircle, Lock } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Navbar */}
-      <header className="navbar glass-card" style={{ borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
-        <div className="container navbar-content">
-          <Link href="#" className="flex items-center gap-2">
-            <Zap className="h-6 w-6 text-indigo-500" />
-            <span className="text-xl font-bold text-gradient">
-              Jeevana Vidya Online School
-            </span>
-          </Link>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#030712', /* specific deep dark bg */
+      color: 'white',
+      fontFamily: 'Inter, sans-serif'
+    }}>
 
-          <nav className="nav-links">
-            <Link className="btn-secondary" style={{ border: 'none' }} href="#features">Features</Link>
-            <Link className="btn-secondary" style={{ border: 'none' }} href="#pricing">Pricing</Link>
-            <Link className="btn-secondary" style={{ border: 'none' }} href="#about">About</Link>
+      {/* --- Navbar --- */}
+      <header style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        backgroundColor: 'rgba(3, 7, 18, 0.8)',
+        backdropFilter: 'blur(12px)'
+      }}>
+        <div className="container" style={{
+          height: '70px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #2563EB 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white'
+            }}>
+              <Zap size={18} fill="currentColor" />
+            </div>
+            <span style={{ fontSize: '1.125rem', fontWeight: 700, letterSpacing: '-0.025em' }}>
+              Jeevana Vidya
+            </span>
+          </div>
+
+          {/* Center Nav */}
+          <nav style={{ display: 'flex', gap: '32px' }} className="hidden md:flex">
+            <Link href="#features" style={{ fontSize: '0.9rem', color: '#9CA3AF', fontWeight: 500 }}>Features</Link>
+            <Link href="#security" style={{ fontSize: '0.9rem', color: '#9CA3AF', fontWeight: 500 }}>Security</Link>
+            <Link href="#resources" style={{ fontSize: '0.9rem', color: '#9CA3AF', fontWeight: 500 }}>Resources</Link>
           </nav>
 
-          <div className="flex gap-4">
-            <Link className="btn-secondary text-sm" href="/login">Log In</Link>
-            <Link className="btn-primary text-sm" href="/signup">Sign Up</Link>
+          {/* Auth Action */}
+          <div>
+            <Link
+              href="/login"
+              className="btn-primary"
+              style={{
+                padding: '8px 20px',
+                fontSize: '0.9rem',
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                color: 'white',
+                boxShadow: 'none'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.12)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.08)';
+              }}
+            >
+              Log In
+            </Link>
           </div>
         </div>
       </header>
 
-      <main className="flex-col">
-        {/* Hero Section */}
-        <section className="hero-section">
-          <div className="hero-bg"></div>
-          <div className="container">
-            <h1 className="hero-title">
-              Jeevana Vidya <span className="text-gradient">Online School</span>
+      <main style={{ paddingTop: '70px' }}>
+
+        {/* --- Hero Section --- */}
+        <section style={{
+          padding: '120px 0 100px',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+
+          {/* Background Glow */}
+          <div style={{
+            position: 'absolute',
+            top: '20%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '800px',
+            height: '400px',
+            background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%)',
+            pointerEvents: 'none',
+            zIndex: 0
+          }}></div>
+
+          <div className="container" style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '800px' }}>
+
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 16px',
+              borderRadius: '99px',
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.02)',
+              marginBottom: '32px',
+              fontSize: '0.875rem',
+              color: '#93C5FD'
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2563EB' }}></span>
+              Enterprise Grade School CRM
+            </div>
+
+            <h1 style={{
+              fontSize: 'clamp(2.5rem, 5vw, 4rem)',
+              fontWeight: 800,
+              lineHeight: 1.1,
+              marginBottom: '24px',
+              letterSpacing: '-0.02em',
+              background: 'linear-gradient(to right, #ffffff, #9CA3AF)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              color: 'white' /* Fallback */
+            }}>
+              The Operating System for <br /> Modern Schools
             </h1>
-            <p className="hero-subtitle">
-              Integrative Education with Ethical Principles and Morals. The modern education platform for future leaders.
+
+            <p style={{
+              fontSize: '1.125rem',
+              lineHeight: 1.6,
+              color: '#9CA3AF',
+              marginBottom: '48px',
+              maxWidth: '600px',
+              marginLeft: 'auto',
+              marginRight: 'auto'
+            }}>
+              A unified platform to streamline admissions, manage student success, and empower educators with data-driven insights. Secure, scalable, and simple.
             </p>
-            <div className="flex justify-center gap-4">
-              <Link className="btn-primary" href="/signup" style={{ padding: '12px 32px', fontSize: '1.125rem' }}>
-                Get Started <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link className="btn-secondary" href="#features" style={{ padding: '12px 32px', fontSize: '1.125rem' }}>
-                Learn More
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
+              <Link
+                href="/login"
+                className="btn-primary"
+                style={{
+                  height: '52px',
+                  padding: '0 32px',
+                  fontSize: '1rem',
+                  borderRadius: '10px',
+                  backgroundColor: '#2563EB'
+                }}
+              >
+                Access Portal <ArrowRight size={18} />
               </Link>
             </div>
+
+            <div style={{
+              marginTop: '64px',
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '40px',
+              opacity: 0.5,
+              filter: 'grayscale(100%)'
+            }}>
+              {/* Trust signals / generic placeholders since no logos provided */}
+              <div style={{ fontSize: '1.2rem', fontWeight: 600, color: '#6B7280' }}>Trusted by Leading Institutes</div>
+            </div>
+
           </div>
         </section>
 
-        {/* Features Section */}
-        <section id="features" className="features-section">
+
+        {/* --- Features Grid --- */}
+        <section id="features" style={{ padding: '80px 0', backgroundColor: '#090E1A' }}>
           <div className="container">
-            <div className="text-center" style={{ marginBottom: '64px' }}>
-              <div style={{
-                display: 'inline-block',
-                borderRadius: '9999px',
-                background: 'rgba(79, 70, 229, 0.1)',
-                padding: '4px 12px',
-                color: '#818cf8',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                marginBottom: '16px',
-                border: '1px solid rgba(99, 102, 241, 0.2)'
-              }}>
-                Key Features
-              </div>
-              <h2 className="hero-title" style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Designed for Growth</h2>
-              <p className="hero-subtitle" style={{ marginBottom: 0 }}>
-                Everything you need to manage parent relationships and boost enrollment numbers.
-              </p>
+            <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '16px' }}>Everything you need to grow</h2>
+              <p style={{ color: '#9CA3AF' }}>Powerful tools designed for the unique needs of educational institutions.</p>
             </div>
 
-            <div className="grid-3">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '24px'
+            }}>
               {/* Feature 1 */}
-              <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(79, 70, 229, 0.1)', width: 'fit-content', color: '#818cf8' }}>
-                  <Users className="h-6 w-6" />
+              <div style={{
+                padding: '32px',
+                borderRadius: '16px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)',
+                transition: 'all 0.2s ease'
+              }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: 'rgba(37,99,235,0.1)', color: '#60A5FA',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '24px'
+                }}>
+                  <Users size={24} />
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Centralized Lead Management</h3>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', lineHeight: 1.6 }}>
-                  Never lose a parent enquiry again. Capture leads from web, phone, and walk-ins in one secure database.
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '12px' }}>Lead Management</h3>
+                <p style={{ color: '#9CA3AF', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                  Capture and track student enquiries from multiple sources in one centralized dashboard.
                 </p>
               </div>
 
               {/* Feature 2 */}
-              <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)', width: 'fit-content', color: '#4ade80' }}>
-                  <Zap className="h-6 w-6" />
+              <div style={{
+                padding: '32px',
+                borderRadius: '16px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: 'rgba(16, 185, 129, 0.1)', color: '#34D399',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '24px'
+                }}>
+                  <CheckCircle size={24} />
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Automated Follow-ups</h3>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', lineHeight: 1.6 }}>
-                  Let the system remind your team who to call. Set rules to automate tasks and ensure timely engagement.
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '12px' }}>Automated Workflows</h3>
+                <p style={{ color: '#9CA3AF', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                  Streamline follow-ups and tasks with intelligent automation rules that save staff time.
                 </p>
               </div>
 
               {/* Feature 3 */}
-              <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.1)', width: 'fit-content', color: '#fbbf24' }}>
-                  <BarChart3 className="h-6 w-6" />
+              <div style={{
+                padding: '32px',
+                borderRadius: '16px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.1)', color: '#FCD34D',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '24px'
+                }}>
+                  <BarChart3 size={24} />
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Real-time Insights</h3>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', lineHeight: 1.6 }}>
-                  Track counselor performance and pipeline health with beautiful, interactive dashboards.
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '12px' }}>Analytics & Reporting</h3>
+                <p style={{ color: '#9CA3AF', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                  Gain real-time visibility into enrollment performance and team productivity.
                 </p>
               </div>
             </div>
           </div>
         </section>
+
+        {/* --- Trust/Security Mini Section --- */}
+        <section id="security" style={{ padding: '80px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '40px' }}>
+            <div style={{ maxWidth: '500px' }}>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '16px' }}>Enterprise-grade Security</h2>
+              <p style={{ color: '#9CA3AF', lineHeight: 1.6 }}>We take data protection seriously. Your institution's data is encrypted, backed up, and protected by industry-leading security standards.</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#E5E7EB' }}>
+                <Shield size={20} color="#60A5FA" /> 256-bit Encryption
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#E5E7EB' }}>
+                <Lock size={20} color="#60A5FA" /> Role-based Access
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#E5E7EB' }}>
+                <CheckCircle size={20} color="#60A5FA" /> Daily Backups
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#E5E7EB' }}>
+                <CheckCircle size={20} color="#60A5FA" /> GDPR Compliant
+              </div>
+            </div>
+          </div>
+        </section>
+
       </main>
 
-      <footer style={{ padding: '32px 0', borderTop: '1px solid var(--color-border)', marginTop: 'auto' }}>
-        <div className="container flex items-center justify-between" style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-          <p>© 2026 Jeevana Vidya Online School. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link href="#">Terms of Service</Link>
-            <Link href="#">Privacy</Link>
+      {/* --- Footer --- */}
+      <footer style={{
+        padding: '40px 0',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        backgroundColor: '#030712'
+      }}>
+        <div className="container" style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '20px',
+          color: '#6B7280',
+          fontSize: '0.875rem'
+        }}>
+          <div>
+            &copy; 2026 Jeevana Vidya Online School. All rights reserved.
+          </div>
+          <div style={{ display: 'flex', gap: '24px' }}>
+            <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="#" className="hover:text-white transition-colors">Contact Support</Link>
           </div>
         </div>
       </footer>
+
     </div>
   );
 }
