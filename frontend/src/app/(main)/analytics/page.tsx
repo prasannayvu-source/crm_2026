@@ -7,7 +7,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './analytics.css';
 import {
-    LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+    LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, FunnelChart, Funnel,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts';
 
@@ -57,6 +57,8 @@ interface AlertItem {
     link: string | null;
     created_at: string;
 }
+
+const COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'];
 
 export default function AnalyticsPage() {
     const router = useRouter();
@@ -384,12 +386,18 @@ export default function AnalyticsPage() {
                     <div className="chart-card">
                         <h3>Lead Volume Over Time</h3>
                         <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={leadVolume} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                            <AreaChart data={leadVolume} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                                 <XAxis dataKey="date" stroke="#9CA3AF" />
                                 <YAxis stroke="#9CA3AF" allowDecimals={false} />
                                 <Tooltip
-                                    cursor={{ fill: 'transparent' }}
+                                    cursor={{ stroke: '#6366F1', strokeWidth: 2 }}
                                     contentStyle={{
                                         backgroundColor: '#1F2937',
                                         border: '1px solid #374151',
@@ -399,10 +407,15 @@ export default function AnalyticsPage() {
                                     itemStyle={{ color: '#E5E7EB' }}
                                 />
                                 <Legend />
-                                <Bar dataKey="count" fill="#6366F1" name="Leads" radius={[4, 4, 0, 0]} barSize={40}>
-                                    <LabelList dataKey="count" position="top" fill="#FFFFFF" fontSize={14} fontWeight="bold" offset={5} />
-                                </Bar>
-                            </BarChart>
+                                <Area
+                                    type="monotone"
+                                    dataKey="count"
+                                    stroke="#6366F1"
+                                    fillOpacity={1}
+                                    fill="url(#colorCount)"
+                                    name="Leads"
+                                />
+                            </AreaChart>
                         </ResponsiveContainer>
                     </div>
 
@@ -410,68 +423,8 @@ export default function AnalyticsPage() {
                     <div className="chart-card">
                         <h3>Pipeline Funnel</h3>
                         <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={funnel} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                <XAxis type="number" stroke="#9CA3AF" />
-                                <YAxis
-                                    dataKey="stage"
-                                    type="category"
-                                    stroke="#9CA3AF"
-                                    width={180} // Increased width to fit names
-                                    tickFormatter={(value) => {
-                                        // Format: "application_submitted" -> "Application Submitted"
-                                        return value
-                                            .split('_')
-                                            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                                            .join(' ');
-                                    }}
-                                />
+                            <FunnelChart>
                                 <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    formatter={(value: any) => [value, 'Count']}
-                                    labelFormatter={(label) => {
-                                        // Also format the tooltip label
-                                        return label
-                                            .split('_')
-                                            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                                            .join(' ');
-                                    }}
-                                    contentStyle={{
-                                        backgroundColor: '#1F2937',
-                                        border: '1px solid #374151',  // Subtle border
-                                        borderRadius: '8px',
-                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                    }}
-                                    itemStyle={{ color: '#E5E7EB' }} // Light text
-                                />
-                                <Legend />
-                                <Bar
-                                    dataKey="count"
-                                    fill="#6366F1"
-                                    name="Count"
-                                    barSize={30}
-                                    radius={[0, 4, 4, 0]} // Rounded corners on the right side
-                                >
-                                    <LabelList dataKey="count" position="right" fill="#FFFFFF" fontSize={14} fontWeight="bold" offset={5} />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    {/* Conversion by Source */}
-                    <div className="chart-card">
-                        <h3>{conversionBySource.some(i => i.conversion_rate > 0) ? "Conversion by Source" : "Leads by Source (No Conversions)"}</h3>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={conversionBySource} layout="horizontal" margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                                <XAxis
-                                    dataKey="source"
-                                    stroke="#9CA3AF"
-                                    tickFormatter={(value) => value.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                                />
-                                <YAxis stroke="#9CA3AF" unit="%" />
-                                <Tooltip
-                                    cursor={{ fill: 'transparent' }}
                                     contentStyle={{
                                         backgroundColor: '#1F2937',
                                         border: '1px solid #374151',
@@ -479,18 +432,58 @@ export default function AnalyticsPage() {
                                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                                     }}
                                     itemStyle={{ color: '#E5E7EB' }}
-                                    formatter={(value: any, name: any) => [`${value}%`, 'Conversion Rate']}
-                                    labelFormatter={(label) => label.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                    formatter={(value: any, name: any, props: any) => [`${value} Leads`, props.payload.stage.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())]}
                                 />
-                                <Bar
-                                    dataKey="conversion_rate"
-                                    name="Conversion Rate"
-                                    fill="#8B5CF6" // Violet color
-                                    radius={[4, 4, 0, 0]}
-                                    barSize={50}
+                                <Funnel
+                                    dataKey="count"
+                                    data={funnel}
+                                    isAnimationActive
                                 >
-                                    <LabelList dataKey="conversion_rate" position="top" formatter={(val: any) => `${val}%`} fill="#FFFFFF" fontSize={14} fontWeight="bold" offset={5} />
-                                </Bar>
+                                    <LabelList position="right" fill="#fff" stroke="none" dataKey="stage" formatter={(val: string) => val.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} />
+                                    <LabelList position="center" fill="#000" stroke="none" dataKey="count" />
+                                    {
+                                        funnel.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))
+                                    }
+                                </Funnel>
+                            </FunnelChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* Conversion by Source */}
+                    <div className="chart-card">
+                        <h3>{conversionBySource.some(i => i.conversion_rate > 0) ? "Conversion by Source" : "Leads by Source"}</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart
+                                data={conversionBySource.map(item => ({
+                                    ...item,
+                                    not_enrolled: item.total_leads - item.enrolled
+                                }))}
+                                layout="vertical"
+                                margin={{ top: 20, right: 30, left: 30, bottom: 0 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                                <XAxis type="number" stroke="#9CA3AF" />
+                                <YAxis
+                                    dataKey="source"
+                                    type="category"
+                                    stroke="#9CA3AF"
+                                    tickFormatter={(value) => value.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                    width={100}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                                    contentStyle={{
+                                        backgroundColor: '#1F2937',
+                                        border: '1px solid #374151',
+                                        borderRadius: '8px',
+                                    }}
+                                    itemStyle={{ color: '#E5E7EB' }}
+                                />
+                                <Legend />
+                                <Bar dataKey="enrolled" stackId="a" fill="#10B981" name="Enrolled" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="not_enrolled" stackId="a" fill="#374151" name="Not Enrolled" radius={[0, 4, 4, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

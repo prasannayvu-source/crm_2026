@@ -3,132 +3,324 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import './reports.css';
+import { toast } from 'sonner';
+import { Trash2 } from 'lucide-react';
 
 interface ReportTemplate {
     id: string;
     name: string;
     description: string;
+    fields: string[];
+    filters?: Record<string, any> | null;
+    is_system?: boolean;
 }
+
+interface ReportPreviewData {
+    report_id: string;
+    preview_data: Record<string, any>[];
+    row_count: number;
+}
+
+const AVAILABLE_FIELDS: { id: string; label: string }[] = [
+    { id: 'parent_name', label: 'Parent Name' },
+    { id: 'student_name', label: 'Student Name' },
+    { id: 'email', label: 'Email' },
+    { id: 'phone', label: 'Phone' },
+    { id: 'status', label: 'Lead Status' },
+    { id: 'source', label: 'Lead Source' },
+    { id: 'grade', label: 'Grade Applying For' },
+    { id: 'assigned_to', label: 'Assigned Counselor' },
+    { id: 'created_at', label: 'Creation Date' },
+    { id: 'last_interaction_at', label: 'Last Interaction' },
+];
+
+const FILTER_STATUS_OPTIONS = [
+    "new", "attempted_contact", "connected", "visit_scheduled", "application_submitted", "enrolled", "lost"
+];
+
+const FILTER_SOURCE_OPTIONS = [
+    "website", "walk_in", "referral", "social", "phone"
+];
 
 export default function ReportsPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [templates, setTemplates] = useState<ReportTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+    const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+    // Builder State
+    const [buildStep, setBuildStep] = useState(1); // 1: Select Type, 2: Configure, 3: Preview
+    const [customConfig, setCustomConfig] = useState({
+        name: '',
+        description: '',
+        fields: [] as string[],
+        filters: {
+            status: '',
+            source: '',
+            date_from: null as Date | null,
+            date_to: null as Date | null
+        }
+    });
+
+    // Results State
+    const [previewData, setPreviewData] = useState<ReportPreviewData | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
-        fetchTemplates();
+        checkSessionAndFetch();
     }, []);
 
-    const fetchTemplates = async () => {
+    const checkSessionAndFetch = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            router.push('/login');
+            return;
+        }
+        setSessionToken(session.access_token);
+        fetchTemplates(session.access_token);
+    };
+
+    const fetchTemplates = async (token: string) => {
         try {
-            console.log('Reports: Starting to fetch templates...');
-            const startTime = performance.now();
-
-            // Get Supabase session token
-            const sessionResponse = await supabase.auth.getSession();
-            console.log('Reports: Got session response in', (performance.now() - startTime).toFixed(0), 'ms');
-
-            // Better null checking
-            if (!sessionResponse || !sessionResponse.data || !sessionResponse.data.session) {
-                console.log('Reports: No session found, redirecting to login');
-                router.push('/login');
-                return;
-            }
-
-            const session = sessionResponse.data.session;
-            const token = session.access_token;
-            const fetchStart = performance.now();
-
-            const response = await fetch('http://127.0.0.1:8000/api/v1/reports/templates', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+            const response = await fetch('/api/v1/reports/templates', {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
-            console.log('Reports: API response in', (performance.now() - fetchStart).toFixed(0), 'ms, status:', response.status);
-
             if (response.ok) {
                 const data = await response.json();
-                console.log('Reports: Got', data?.length || 0, 'templates');
                 setTemplates(data || []);
-            } else {
-                if (response.status === 401) {
-                    console.log('Reports: Session expired (401), redirecting to login');
-                    await supabase.auth.signOut();
-                    router.push('/login');
-                    return;
-                }
-                const errorText = await response.text();
-                console.error('Reports: API error', response.status, errorText);
-                setTemplates([]);
             }
-
-            console.log('Reports: Total time:', (performance.now() - startTime).toFixed(0), 'ms');
         } catch (error) {
-            console.error('Reports: Error fetching templates:', error);
-            setTemplates([]);
+            console.error('Error fetching templates:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleExport = async (format: string) => {
-        if (!selectedTemplate) {
-            alert('Please select a report template first');
+    const handleTemplateSelect = (templateId: string) => {
+        setSelectedTemplate(templateId);
+
+        if (templateId === 'new_custom') {
+            setCustomConfig({
+                name: 'New Custom Report',
+                description: 'Custom report generated by user',
+                fields: ['parent_name', 'status', 'created_at'], // Defaults
+                filters: { status: '', source: '', date_from: null, date_to: null }
+            });
+            setBuildStep(2);
+        } else {
+            // Load template config into builder
+            const tmpl = templates.find(t => t.id === templateId);
+            if (tmpl) {
+                setCustomConfig({
+                    name: tmpl.name,
+                    description: tmpl.description,
+                    fields: tmpl.fields || [],
+                    filters: {
+                        status: tmpl.filters?.status || '',
+                        source: tmpl.filters?.source || '',
+                        date_from: null,
+                        date_to: null
+                    }
+                });
+                setBuildStep(2);
+            }
+        }
+    };
+
+    const handleDeleteReport = async (e: React.MouseEvent, templateId: string) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this report? This action cannot be undone.")) return;
+
+        try {
+            const response = await fetch(`/api/v1/reports/${templateId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`
+                }
+            });
+
+            if (response.ok) {
+                toast.success("Report deleted");
+                // Need to refresh
+                if (sessionToken) fetchTemplates(sessionToken);
+                if (selectedTemplate === templateId) {
+                    setSelectedTemplate(null);
+                    setPreviewData(null);
+                    setBuildStep(1);
+                    setCustomConfig({ name: '', description: '', fields: [], filters: { status: '', source: '', date_from: null, date_to: null } });
+                }
+            } else {
+                toast.error("Failed to delete report");
+            }
+        } catch (error) {
+            console.error("Delete error:", error);
+            toast.error("Error deleting report");
+        }
+    };
+
+    const toggleField = (fieldId: string) => {
+        setCustomConfig(prev => {
+            const fields = prev.fields.includes(fieldId)
+                ? prev.fields.filter(f => f !== fieldId)
+                : [...prev.fields, fieldId];
+            return { ...prev, fields };
+        });
+    };
+
+    const handleGenerateReport = async () => {
+        if (!customConfig.name) {
+            alert("Please enter a report name");
+            return;
+        }
+        if (customConfig.fields.length === 0) {
+            alert("Please select at least one field");
             return;
         }
 
+        setIsGenerating(true);
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
-            const token = session.access_token;
+            // Prepare payload
+            const payload = {
+                name: customConfig.name,
+                description: customConfig.description,
+                fields: customConfig.fields,
+                filters: {
+                    ...(customConfig.filters.status && { status: customConfig.filters.status }),
+                    ...(customConfig.filters.source && { source: customConfig.filters.source }),
+                    ...(customConfig.filters.date_from && { date_from: customConfig.filters.date_from.toISOString() }),
+                    ...(customConfig.filters.date_to && { date_to: customConfig.filters.date_to.toISOString() })
+                },
+                grouping: null,
+                sorting: null,
+                aggregations: null
+            };
 
-            // Use 127.0.0.1 to avoid network delays
-            const response = await fetch('http://127.0.0.1:8000/api/v1/reports/export', {
+            const response = await fetch('/api/v1/reports/build?save=false', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    'Authorization': `Bearer ${sessionToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setPreviewData(data);
+                setBuildStep(3);
+            } else {
+                const err = await response.text();
+                alert(`Failed to generate report: ${err}`);
+            }
+        } catch (error) {
+            console.error("Report generation error:", error);
+            alert("An error occurred while generating the report.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleSaveReport = async () => {
+        setIsGenerating(true);
+        try {
+            const payload = {
+                name: customConfig.name,
+                description: customConfig.description,
+                fields: customConfig.fields,
+                filters: {
+                    ...(customConfig.filters.status && { status: customConfig.filters.status }),
+                    ...(customConfig.filters.source && { source: customConfig.filters.source }),
+                    ...(customConfig.filters.date_from && { date_from: customConfig.filters.date_from.toISOString() }),
+                    ...(customConfig.filters.date_to && { date_to: customConfig.filters.date_to.toISOString() })
+                },
+                grouping: null,
+                sorting: null,
+                aggregations: null
+            };
+
+            const response = await fetch('/api/v1/reports/build?save=true', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                toast.success("Report saved successfully!");
+                if (data.report_id && previewData) {
+                    setPreviewData({ ...previewData, report_id: data.report_id });
+                }
+                fetchTemplates(sessionToken);
+            } else {
+                const err = await response.text();
+                toast.error(`Failed to save report: ${err}`);
+            }
+        } catch (error) {
+            console.error("Save error:", error);
+            toast.error("An error occurred while saving.");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleExport = async (format: string) => {
+        if (!previewData || !sessionToken) return;
+
+        try {
+            const response = await fetch('/api/v1/reports/export', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${sessionToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    report_id: selectedTemplate,
+                    report_id: previewData.report_id,
+                    report_config: {
+                        name: customConfig.name,
+                        description: customConfig.description,
+                        fields: customConfig.fields,
+                        filters: {
+                            ...(customConfig.filters.status && { status: customConfig.filters.status }),
+                            ...(customConfig.filters.source && { source: customConfig.filters.source }),
+                            ...(customConfig.filters.date_from && { date_from: customConfig.filters.date_from.toISOString() }),
+                            ...(customConfig.filters.date_to && { date_to: customConfig.filters.date_to.toISOString() })
+                        },
+                        grouping: null,
+                        sorting: null,
+                        aggregations: null
+                    },
                     format: format
                 })
             });
 
             if (response.ok) {
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                    const data = await response.json();
-                    alert(`Report exported successfully! Download URL: ${data.download_url}`);
-                } else {
-                    // It's a file blob (for CSV)
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `report_${format}_${new Date().toISOString().split('T')[0]}.${format}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                }
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${customConfig.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.${format === 'sheets' ? 'csv' : format}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
             } else {
-                let errorMessage = 'Export failed. Please try again.';
-                try {
-                    const errorData = await response.json();
-                    if (errorData.detail) errorMessage = `Export failed: ${errorData.detail}`;
-                } catch (e) {
-                    // Ignore JSON parse error, use default message
+                const err = await response.text();
+                if (err.includes("Phase 5")) {
+                    alert("This feature is coming in Phase 5.");
+                } else {
+                    alert("Export failed. Please try again.");
                 }
-                alert(errorMessage);
             }
         } catch (error) {
-            console.error('Error exporting report:', error);
-            alert('An error occurred during export.');
+            console.error('Export error:', error);
+            alert('Export failed.');
         }
     };
 
@@ -151,18 +343,37 @@ export default function ReportsPage() {
             </div>
 
             <div className="reports-content">
-                {/* Sidebar - Report Templates */}
+                {/* Sidebar */}
                 <div className="reports-sidebar">
-                    <h3>Report Templates</h3>
+                    <div
+                        className={`template-item new-report ${selectedTemplate === 'new_custom' ? 'selected' : ''}`}
+                        onClick={() => handleTemplateSelect('new_custom')}
+                    >
+                        <div className="template-name">+ Create New Custom Report</div>
+                        <div className="template-description">Start from scratch</div>
+                    </div>
+
+                    <h3>Templates & Saved Reports</h3>
                     <div className="templates-list">
                         {templates.map((template) => (
                             <div
                                 key={template.id}
                                 className={`template-item ${selectedTemplate === template.id ? 'selected' : ''}`}
-                                onClick={() => setSelectedTemplate(template.id)}
+                                onClick={() => handleTemplateSelect(template.id)}
                             >
-                                <div className="template-name">{template.name}</div>
-                                <div className="template-description">{template.description}</div>
+                                <div className="template-info">
+                                    <div className="template-name">{template.name}</div>
+                                    <div className="template-description">{template.description}</div>
+                                </div>
+                                {!template.is_system && (
+                                    <button
+                                        className="delete-icon-btn"
+                                        onClick={(e) => handleDeleteReport(e, template.id)}
+                                        title="Delete Report"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -170,35 +381,174 @@ export default function ReportsPage() {
 
                 {/* Main Content */}
                 <div className="reports-main">
-                    {selectedTemplate ? (
-                        <div className="report-builder">
-                            <h2>Report Builder</h2>
-                            <p className="builder-subtitle">Selected: {templates.find(t => t.id === selectedTemplate)?.name}</p>
-
-                            <div className="export-section">
-                                <h3>Export Report</h3>
-                                <div className="export-buttons">
-                                    <button onClick={() => handleExport('csv')} className="export-btn">
-                                        Export as CSV
-                                    </button>
-                                    <button onClick={() => handleExport('xlsx')} className="export-btn">
-                                        Export as Excel
-                                    </button>
-                                    <button onClick={() => handleExport('pdf')} className="export-btn">
-                                        Export as PDF
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="schedule-section">
-                                <h3>Schedule Report</h3>
-                                <p className="coming-soon">Scheduling feature coming soon...</p>
-                            </div>
+                    {!selectedTemplate ? (
+                        <div className="empty-state">
+                            <h2>Select a Report</h2>
+                            <p>Choose a template or create a new custom report to get started.</p>
                         </div>
                     ) : (
-                        <div className="empty-state">
-                            <h2>Select a Report Template</h2>
-                            <p>Choose a template from the sidebar to get started</p>
+                        <div className="report-builder">
+                            {/* Steps Indicator */}
+                            <div className="steps-indicator">
+                                <div className={`step ${buildStep >= 1 ? 'active' : ''}`}>1. Select</div>
+                                <div className={`step-line ${buildStep >= 2 ? 'active' : ''}`}></div>
+                                <div className={`step ${buildStep >= 2 ? 'active' : ''}`}>2. Configure</div>
+                                <div className={`step-line ${buildStep >= 3 ? 'active' : ''}`}></div>
+                                <div className={`step ${buildStep >= 3 ? 'active' : ''}`}>3. Preview & Export</div>
+                            </div>
+
+                            {/* Step 2: Configuration */}
+                            {buildStep === 2 && (
+                                <div className="config-form">
+                                    <div className="form-group">
+                                        <label>Report Name</label>
+                                        <input
+                                            type="text"
+                                            value={customConfig.name}
+                                            onChange={(e) => setCustomConfig({ ...customConfig, name: e.target.value })}
+                                            className="report-input full-width"
+                                            placeholder="Enter report name..."
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Description</label>
+                                        <input
+                                            type="text"
+                                            value={customConfig.description}
+                                            onChange={(e) => setCustomConfig({ ...customConfig, description: e.target.value })}
+                                            className="report-input full-width"
+                                            placeholder="Optional description..."
+                                        />
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-column">
+                                            <h4>Select Fields</h4>
+                                            <div className="fields-grid">
+                                                {AVAILABLE_FIELDS.map(field => (
+                                                    <label key={field.id} className="checkbox-label">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={customConfig.fields.includes(field.id)}
+                                                            onChange={() => toggleField(field.id)}
+                                                        />
+                                                        {field.label}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="form-column">
+                                            <h4>Filters</h4>
+                                            <div className="filter-item">
+                                                <label>Status</label>
+                                                <select
+                                                    value={customConfig.filters.status}
+                                                    onChange={(e) => setCustomConfig({ ...customConfig, filters: { ...customConfig.filters, status: e.target.value } })}
+                                                    className="report-select"
+                                                >
+                                                    <option value="">All Statuses</option>
+                                                    {FILTER_STATUS_OPTIONS.map(opt => (
+                                                        <option key={opt} value={opt}>{opt.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="filter-item">
+                                                <label>Source</label>
+                                                <select
+                                                    value={customConfig.filters.source}
+                                                    onChange={(e) => setCustomConfig({ ...customConfig, filters: { ...customConfig.filters, source: e.target.value } })}
+                                                    className="report-select"
+                                                >
+                                                    <option value="">All Sources</option>
+                                                    {FILTER_SOURCE_OPTIONS.map(opt => (
+                                                        <option key={opt} value={opt}>{opt.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="filter-item">
+                                                <label>Date Range (Created At)</label>
+                                                <div className="date-row">
+                                                    <DatePicker
+                                                        selected={customConfig.filters.date_from}
+                                                        onChange={(date: Date | null) => setCustomConfig({ ...customConfig, filters: { ...customConfig.filters, date_from: date } })}
+                                                        placeholderText="From"
+                                                        className="report-input"  // Used report-input class
+                                                        wrapperClassName="date-picker-wrapper"
+                                                    />
+                                                    <span className="separator">-</span>
+                                                    <DatePicker
+                                                        selected={customConfig.filters.date_to}
+                                                        onChange={(date: Date | null) => setCustomConfig({ ...customConfig, filters: { ...customConfig.filters, date_to: date } })}
+                                                        placeholderText="To"
+                                                        className="report-input"
+                                                        wrapperClassName="date-picker-wrapper"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="action-buttons">
+                                        <button
+                                            className="generate-btn"
+                                            onClick={handleGenerateReport}
+                                            disabled={isGenerating}
+                                        >
+                                            {isGenerating ? 'Generating...' : 'Generate & Preview'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 3: Preview */}
+                            {buildStep === 3 && previewData && (
+                                <div className="preview-section">
+                                    <div className="preview-header">
+                                        <div className="left-controls">
+                                            <button className="back-btn" onClick={() => setBuildStep(2)}>← Edit</button>
+                                            {!previewData.report_id && (
+                                                <button className="save-btn" onClick={handleSaveReport} disabled={isGenerating}>
+                                                    {isGenerating ? 'Saving...' : '💾 Save Report'}
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="export-buttons">
+                                            <button onClick={() => handleExport('csv')} className="export-btn csv">CSV</button>
+                                            <button onClick={() => handleExport('xlsx')} className="export-btn xlsx">Excel</button>
+                                            <button onClick={() => handleExport('pdf')} className="export-btn pdf">PDF</button>
+                                        </div>
+                                    </div>
+
+                                    <div className="results-summary">
+                                        Found <strong>{previewData.row_count}</strong> records (showing first {previewData.preview_data.length})
+                                    </div>
+
+                                    <div className="table-container">
+                                        <table className="preview-table">
+                                            <thead>
+                                                <tr>
+                                                    {customConfig.fields.map(field => (
+                                                        <th key={field}>{AVAILABLE_FIELDS.find(f => f.id === field)?.label || field}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {previewData.preview_data.map((row, idx) => (
+                                                    <tr key={idx}>
+                                                        {customConfig.fields.map(field => (
+                                                            <td key={field}>
+                                                                {['created_at', 'last_interaction_at'].includes(field) && row[field]
+                                                                    ? new Date(row[field]).toLocaleDateString()
+                                                                    : row[field]?.toString() || '-'}
+                                                            </td>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

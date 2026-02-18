@@ -42,6 +42,9 @@ interface AuditLog {
     action: string;
     resource: string;
     resource_id: string | null;
+    user_name?: string;
+    user_email?: string;
+    details?: any;
     created_at: string;
 }
 
@@ -156,7 +159,7 @@ export default function AdminPage() {
             // Convert array to dict for storage usually expected by backend
             const permDict = newPerms.reduce((acc, id) => ({ ...acc, [id]: true }), {});
 
-            const response = await fetch(`http://localhost:8000/api/v1/admin/roles/${roleId}`, {
+            const response = await fetch(`/api/v1/admin/roles/${roleId}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
@@ -199,7 +202,7 @@ export default function AdminPage() {
 
         const token = session.access_token;
         try {
-            const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+            const response = await fetch('/api/v1/auth/me', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -245,26 +248,26 @@ export default function AdminPage() {
             };
 
             if (activeTab === 'users') {
-                const response = await fetch('http://localhost:8000/api/v1/admin/users', { headers });
+                const response = await fetch('/api/v1/admin/users', { headers });
                 if (response.ok) {
                     const data = await response.json();
                     setUsers(data.users || []);
                 }
 
                 // Also fetch roles for the modals
-                const roleRes = await fetch('http://localhost:8000/api/v1/admin/roles', { headers });
+                const roleRes = await fetch('/api/v1/admin/roles', { headers });
                 if (roleRes.ok) {
                     const roleData = await roleRes.json();
                     setRoles(roleData || []);
                 }
             } else if (activeTab === 'audit') {
-                const response = await fetch('http://localhost:8000/api/v1/admin/audit-logs', { headers });
+                const response = await fetch('/api/v1/admin/audit-logs', { headers });
                 if (response.ok) {
                     const data = await response.json();
                     setAuditLogs(data.logs || []);
                 }
             } else if (activeTab === 'roles') {
-                const response = await fetch('http://localhost:8000/api/v1/admin/roles', { headers, cache: 'no-store' });
+                const response = await fetch('/api/v1/admin/roles', { headers, cache: 'no-store' });
                 if (response.ok) {
                     const data = await response.json();
                     setRoles(data || []);
@@ -825,20 +828,26 @@ export default function AdminPage() {
                                 <thead>
                                     <tr>
                                         <th>Timestamp</th>
-                                        <th>Action</th>
-                                        <th>Resource</th>
-                                        <th>User ID</th>
+                                        <th>User</th>
+                                        <th>Activity Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {auditLogs.map((log) => (
                                         <tr key={log.id}>
-                                            <td>{new Date(log.created_at).toLocaleString()}</td>
-                                            <td>
-                                                <span className={`action-badge ${log.action}`}>{log.action}</span>
+                                            <td style={{ whiteSpace: 'nowrap', color: '#9CA3AF', fontSize: '13px' }}>
+                                                {new Date(log.created_at).toLocaleString()}
                                             </td>
-                                            <td>{log.resource}</td>
-                                            <td className="user-id">{log.user_id || 'System'}</td>
+                                            <td>
+                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <span style={{ color: '#E5E7EB', fontWeight: 500 }}>{log.user_name || 'System'}</span>
+                                                    {log.user_email && <span style={{ color: '#6B7280', fontSize: '11px' }}>{log.user_email}</span>}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span className={`action-badge ${log.action}`} style={{ marginBottom: '4px', display: 'inline-block', fontSize: '10px', padding: '2px 6px' }}>{log.action}</span>
+                                                {formatAuditLog(log)}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -849,6 +858,57 @@ export default function AdminPage() {
 
             default:
                 return null;
+        }
+    };
+
+    // Helper to format audit log details
+    const formatAuditLog = (log: AuditLog) => {
+        const details = log.details || {};
+        const resourceName = log.resource.charAt(0).toUpperCase() + log.resource.slice(1);
+
+        switch (log.resource) {
+            case 'user':
+                const email = details.email || log.after_data?.email || log.before_data?.email || 'Unknown User';
+                if (log.action === 'updated') {
+                    // Check what changed if possible, simple implementation for now
+                    const changes = [];
+                    if (log.before_data && log.after_data) {
+                        if (log.before_data.role !== log.after_data.role) changes.push(`Role: ${log.after_data.role}`);
+                        if (log.before_data.status !== log.after_data.status) changes.push(`Status: ${log.after_data.status}`);
+                    }
+                    return (
+                        <div className="flex flex-col">
+                            <span className="text-gray-300 font-medium">{log.action === 'created' ? 'Created' : 'Updated'} User Profile</span>
+                            <span className="text-gray-500 text-xs">Target: {email}</span>
+                            {changes.length > 0 && <span className="text-gray-500 text-xs italic mt-0.5">{changes.join(', ')}</span>}
+                        </div>
+                    );
+                }
+                if (log.action === 'deleted') {
+                    return (
+                        <div className="flex flex-col">
+                            <span className="text-gray-300 font-medium">Deleted User</span>
+                            <span className="text-gray-500 text-xs">Target: {email}</span>
+                        </div>
+                    );
+                }
+                return (
+                    <div className="flex flex-col">
+                        <span className="text-gray-300 font-medium">{resourceName} Action</span>
+                        <span className="text-gray-500 text-xs">Target: {email}</span>
+                    </div>
+                );
+
+            default:
+                // Generic handling
+                return (
+                    <div className="flex flex-col">
+                        <span className="text-gray-300 font-medium">{resourceName}</span>
+                        <span className="text-gray-500 text-xs">
+                            {JSON.stringify(details).slice(0, 50) + (JSON.stringify(details).length > 50 ? '...' : '')}
+                        </span>
+                    </div>
+                );
         }
     };
 

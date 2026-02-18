@@ -57,35 +57,74 @@ REPORT_TEMPLATES = [
 
 @router.get("/templates", response_model=List[ReportTemplate])
 async def get_report_templates(user=Depends(require_permission("reports.view"))):
-    """Get pre-built report templates"""
-    return [ReportTemplate(**template) for template in REPORT_TEMPLATES]
+    """Get report templates (system + custom)"""
+    supabase = get_db()
+    
+    # 1. Get system templates
+    templates = [ReportTemplate(**template, is_system=True) for template in REPORT_TEMPLATES]
+    
+    # 2. Get custom reports from DB
+    try:
+        query = supabase.table("reports").select("*")
+        # Optional: Filter by user or team if needed
+        # query = query.eq("created_by", user.get("id")) 
+        result = query.execute()
+        
+        if result.data:
+            for item in result.data:
+                # Handle JSON fields which might be returned as strings or dicts depending on Supabase client
+                fields = item.get("fields")
+                if isinstance(fields, str):
+                    fields = json.loads(fields)
+                
+                filters = item.get("filters")
+                if isinstance(filters, str):
+                    filters = json.loads(filters)
+                
+                templates.append(ReportTemplate(
+                    id=item["id"],
+                    name=item["name"],
+                    description=item.get("description", ""),
+                    fields=fields or [],
+                    filters=filters or {},
+                    is_system=False
+                ))
+    except Exception as e:
+        print(f"⚠️ Error fetching custom reports: {e}")
+        # Continue with just system templates if DB fails
+    
+    return templates
 
 @router.post("/build", response_model=ReportBuildResponse)
 async def build_report(
     report: ReportCreate,
+    save: bool = Query(False),
     user=Depends(require_permission("reports.view"))
 ):
     """Build a custom report and return preview data"""
     supabase = get_db()
     
-    # Save report definition
-    report_data = {
-        "name": report.name,
-        "description": report.description,
-        "fields": json.dumps(report.fields),
-        "filters": json.dumps(report.filters) if report.filters else None,
-        "grouping": report.grouping,
-        "sorting": json.dumps(report.sorting) if report.sorting else None,
-        "aggregations": json.dumps(report.aggregations) if report.aggregations else None,
-        "created_by": user.get("id")
-    }
+    report_id = None
     
-    insert_result = supabase.table("reports").insert(report_data).execute()
-    
-    if not insert_result.data:
-        raise HTTPException(status_code=500, detail="Failed to create report")
-    
-    report_id = insert_result.data[0]["id"]
+    if save:
+        # Save report definition
+        report_data = {
+            "name": report.name,
+            "description": report.description,
+            "fields": json.dumps(report.fields),
+            "filters": json.dumps(report.filters) if report.filters else None,
+            "grouping": report.grouping,
+            "sorting": json.dumps(report.sorting) if report.sorting else None,
+            "aggregations": json.dumps(report.aggregations) if report.aggregations else None,
+            "created_by": user.get("id")
+        }
+        
+        insert_result = supabase.table("reports").insert(report_data).execute()
+        
+        if not insert_result.data:
+            raise HTTPException(status_code=500, detail="Failed to create report")
+        
+        report_id = insert_result.data[0]["id"]
     
     # Build query based on report definition
     query = supabase.table("leads").select("*")
@@ -121,7 +160,7 @@ async def build_report(
         preview_data.append(filtered_row)
     
     return ReportBuildResponse(
-        report_id=UUID(report_id),
+        report_id=UUID(report_id) if report_id else None,
         preview_data=preview_data,
         row_count=len(data)
     )
@@ -135,11 +174,21 @@ async def export_report(
     supabase = get_db()
     
     # Get report definition
+    report = None
+    
+    # 0. Check for passed config (unsaved report)
+    if export_request.report_config:
+        report = export_request.report_config
+        # Ensure consistency in filter/field access
+        # The logic below expects dict with keys "fields" (list or json string) and "filters" (dict or json string)
+        # report_config from request is already a dict
+        
     # 1. Check pre-built templates
-    report = next((t for t in REPORT_TEMPLATES if t["id"] == str(export_request.report_id)), None)
+    if not report and export_request.report_id:
+        report = next((t for t in REPORT_TEMPLATES if t["id"] == str(export_request.report_id)), None)
     
     # 2. If not found, check database (custom reports)
-    if not report:
+    if not report and export_request.report_id:
         try:
             report_result = supabase.table("reports").select("*").eq("id", str(export_request.report_id)).execute()
             if report_result.data:
@@ -488,3 +537,22 @@ async def get_report_history(
         ))
     
     return runs
+
+@router.delete("/{report_id}")
+async def delete_report(
+    report_id: str,
+    user=Depends(require_permission("reports.delete"))
+):
+    """Delete a custom report"""
+    supabase = get_db()
+    
+    # Check if system report
+    if any(t["id"] == report_id for t in REPORT_TEMPLATES):
+        raise HTTPException(status_code=403, detail="Cannot delete system reports")
+    
+    try:
+        supabase.table("reports").delete().eq("id", report_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting report: {str(e)}")
+        
+    return {"message": "Report deleted successfully"}

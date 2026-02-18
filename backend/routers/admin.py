@@ -591,7 +591,7 @@ async def get_audit_logs(
     """Get audit log entries (admin only)"""
     supabase = get_db()
     
-    query = supabase.table("audit_logs").select("*", count="exact").order("created_at", desc=True)
+    query = supabase.table("audit_logs").select("*, profiles(full_name, email)", count="exact").order("created_at", desc=True)
     
     if date_from:
         query = query.gte("created_at", date_from)
@@ -609,9 +609,13 @@ async def get_audit_logs(
     
     logs = []
     for log_data in result.data if result.data else []:
+        user_profile = log_data.get("profiles")
+        
         logs.append(AuditLog(
             id=UUID(log_data["id"]),
             user_id=UUID(log_data["user_id"]) if log_data.get("user_id") else None,
+            user_name=user_profile.get("full_name") if user_profile else "System",
+            user_email=user_profile.get("email") if user_profile else None,
             action=log_data["action"],
             resource=log_data["resource"],
             resource_id=UUID(log_data["resource_id"]) if log_data.get("resource_id") else None,

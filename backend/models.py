@@ -193,6 +193,7 @@ class ReportTemplate(BaseModel):
     description: str
     fields: List[str]
     filters: Optional[Dict[str, Any]] = None
+    is_system: bool = False
 
 class ReportCreate(BaseModel):
     name: str
@@ -220,12 +221,13 @@ class Report(BaseModel):
         from_attributes = True
 
 class ReportBuildResponse(BaseModel):
-    report_id: UUID
+    report_id: Optional[UUID] = None
     preview_data: List[Dict[str, Any]]
     row_count: int
 
 class ReportExportRequest(BaseModel):
-    report_id: str
+    report_id: Optional[str] = None
+    report_config: Optional[dict] = None  # Full report definition for unsaved exports
     format: str  # 'csv', 'pdf', 'xlsx', 'sheets'
 
 class ReportExportResponse(BaseModel):
@@ -407,6 +409,8 @@ class SystemHealth(BaseModel):
 class AuditLog(BaseModel):
     id: UUID
     user_id: Optional[UUID] = None
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
     action: str
     resource: str
     resource_id: Optional[UUID] = None
