@@ -26,7 +26,7 @@ async def get_tasks(lead_id: Optional[str] = None, assigned_to: Optional[str] = 
 @router.post("/", response_model=Task)
 async def create_task(task: TaskCreate, user=Depends(get_current_user)):
     task_data = task.dict()
-    task_data["created_by"] = user.id
+    # task_data["created_by"] = user.id # Column does not exist in tasks table
     if not task_data.get("assigned_to"):
         task_data["assigned_to"] = user.id
         

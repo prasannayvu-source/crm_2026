@@ -65,24 +65,61 @@ export default function LeadDetailPage() {
         checkPermission();
     }, []);
 
+    // Define API URL once
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
     const fetchTasks = async () => {
         if (!id) return;
-        const { data } = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('lead_id', id)
-            .order('due_date', { ascending: true });
-        setTasks(data || []);
+
+        try {
+            const { data, error } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('lead_id', id)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            if (data) setTasks(data);
+        } catch (e) { console.error("Error fetching tasks:", e); }
     };
 
     const fetchTimeline = async () => {
         if (!id) return;
-        const { data } = await supabase
-            .from('interactions')
-            .select('*')
-            .eq('lead_id', id)
-            .order('created_at', { ascending: false });
-        setInteractions(data || []);
+
+        try {
+            // Fetch Interactions
+            const { data: interactionsData, error: interactionsError } = await supabase
+                .from('interactions')
+                .select('*')
+                .eq('lead_id', id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (interactionsError) throw interactionsError;
+
+            // Fetch Tasks
+            const { data: tasksData, error: tasksError } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('lead_id', id)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (tasksError) throw tasksError;
+
+            // Combine
+            const combined = [
+                ...(interactionsData || []).map(i => ({ ...i, event_type: 'interaction' })),
+                ...(tasksData || []).map(t => ({
+                    ...t,
+                    event_type: 'task',
+                    type: 'task',
+                    summary: `Task: ${t.title} (${t.status})`
+                }))
+            ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            setInteractions(combined);
+        } catch (e) { console.error("Error fetching timeline:", e); }
     };
 
     useEffect(() => {
@@ -116,11 +153,13 @@ export default function LeadDetailPage() {
         fetchTimeline();
     }, [id]);
 
+
+
     const handleStatusUpdate = async (newStatus: string) => {
         // Use the new API endpoint for status updates to trigger automations
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        // API_URL is defined above
 
         try {
             const response = await fetch(`${API_URL}/api/v1/leads/${id}/status?status=${newStatus}`, {
@@ -190,67 +229,114 @@ export default function LeadDetailPage() {
 
     const handleAddTask = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { error } = await supabase.from('tasks').insert([{
-            lead_id: id,
-            title: newTaskTitle,
-            due_date: newTaskDate ? new Date(newTaskDate).toISOString() : null,
-            status: 'pending',
-            assigned_to: (await supabase.auth.getUser()).data.user?.id
-        }]);
+        const { data: { user } } = await supabase.auth.getSession().then(({ data }) => ({ data: { user: data.session?.user } }));
+        if (!user) {
+            toast.error("You must be logged in");
+            return;
+        }
 
-        if (!error) {
+        try {
+            // Direct Supabase Insert
+            const { error } = await supabase.from('tasks').insert({
+                lead_id: id,
+                title: newTaskTitle,
+                due_date: newTaskDate ? new Date(newTaskDate).toISOString() : null,
+                status: 'pending',
+                assigned_to: user.id
+            });
+
+            if (error) throw error;
+
             setShowTaskModal(false);
             setNewTaskTitle('');
             setNewTaskDate('');
-            fetchTasks();
+            fetchTasks();     // Refresh tasks list
+            fetchTimeline();  // Refresh timeline
             toast.success("Task added");
-        } else {
+        } catch (e) {
+            console.error("Add Task Error:", e);
             toast.error("Failed to add task");
         }
     };
 
     const handleCompleteTask = async (taskId: string) => {
-        await supabase.from('tasks').update({ status: 'completed' }).eq('id', taskId);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) return;
+
+        await fetch(`${API_URL}/api/v1/tasks/${taskId}/complete`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}` }
+        });
         fetchTasks();
+        fetchTimeline();
     };
 
     const handleSaveNote = async () => {
         if (!newNote.trim()) return;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            toast.error("You must be logged in");
+            return;
+        }
 
-        const { error } = await supabase.from('interactions').insert([{
-            lead_id: id,
-            type: 'note',
-            summary: newNote,
-            created_by: (await supabase.auth.getUser()).data.user?.id
-        }]);
+        try {
+            // 1. Insert Note directly to Supabase (Bypassing potential API network issues)
+            const { error: insertError } = await supabase.from('interactions').insert({
+                lead_id: id,
+                type: 'note',
+                summary: newNote,
+                created_by: user.id
+            });
 
-        if (!error) {
+            if (insertError) throw insertError;
+
+            // 2. Update Lead Last Interaction
+            await supabase.from('leads').update({
+                last_interaction_at: new Date().toISOString()
+            }).eq('id', id);
+
             setNewNote('');
-            fetchTimeline();
+            fetchTimeline(); // Refresh timeline via API (assuming GET works)
             toast.success("Note saved");
-        } else {
-            console.error(error);
+        } catch (e) {
+            console.error("Save Note Error:", e);
             toast.error("Failed to save note");
         }
     };
 
     const handleLogCall = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { error } = await supabase.from('interactions').insert([{
-            lead_id: id,
-            type: 'call',
-            outcome: callOutcome,
-            summary: callSummary,
-            created_by: (await supabase.auth.getUser()).data.user?.id
-        }]);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            toast.error("You must be logged in");
+            return;
+        }
 
-        if (!error) {
+        try {
+            // 1. Log Call directly to Supabase
+            const { error: insertError } = await supabase.from('interactions').insert({
+                lead_id: id,
+                type: 'call',
+                outcome: callOutcome,
+                summary: callSummary,
+                created_by: user.id
+            });
+
+            if (insertError) throw insertError;
+
+            // 2. Update Lead Last Interaction
+            await supabase.from('leads').update({
+                last_interaction_at: new Date().toISOString()
+            }).eq('id', id);
+
             setShowCallModal(false);
             setCallSummary('');
             setCallOutcome('connected');
             fetchTimeline();
             toast.success("Call logged");
-        } else {
+        } catch (e) {
+            console.error("Log Call Error:", e);
             toast.error("Failed to log call");
         }
     };
@@ -259,8 +345,9 @@ export default function LeadDetailPage() {
     const getInteractionIcon = (type: string) => {
         switch (type) {
             case 'call': return <Phone size={16} />;
-            case 'note': return <Edit size={16} />; // StickyNote not imported, using Edit
-            case 'status_change': return <CheckCircle size={16} />; // RefreshCw better but not imported
+            case 'note': return <Edit size={16} />;
+            case 'status_change': return <CheckCircle size={16} />;
+            case 'task': return <Calendar size={16} />;
             default: return <CircleAlert size={16} />;
         }
     };

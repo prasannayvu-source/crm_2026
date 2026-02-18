@@ -100,10 +100,12 @@ class InteractionType(str, Enum):
     email = "email"
     meeting = "meeting"
     note = "note"
+    status_change = "status_change"
 
 class InteractionBase(BaseModel):
     type: InteractionType
-    notes: str
+    summary: Optional[str] = None
+    outcome: Optional[str] = None
     lead_id: UUID
 
 class InteractionCreate(InteractionBase):
@@ -113,7 +115,7 @@ class Interaction(InteractionBase):
     id: UUID
     created_by: Optional[UUID] = None
     created_at: datetime
-
+    
     class Config:
         from_attributes = True
 

@@ -33,7 +33,7 @@ export default function LeadsPage() {
             if (!session) return;
 
             try {
-                const res = await fetch('http://localhost:8000/api/v1/auth/me', {
+                const res = await fetch('/api/v1/auth/me', {
                     headers: { Authorization: `Bearer ${session.access_token}` }
                 });
                 if (res.ok) {
@@ -80,7 +80,6 @@ export default function LeadsPage() {
                 if (response.status === 401) {
                     console.log('Leads: Session expired (401), redirecting to login');
                     const { error } = await supabase.auth.signOut();
-                    // Use window.location because router might be unmounted if error boundary hits? No, safe to use router.
                     window.location.href = '/login';
                     return;
                 }
@@ -96,8 +95,9 @@ export default function LeadsPage() {
                 if (filterStatus === 'all' && searchQuery === '') {
                     localStorage.setItem('leads_list', JSON.stringify(data || []));
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error fetching leads:', error);
+                alert(`Error loading leads: ${error.message}`);
                 setLeads([]); // Clear leads on error (e.g. 403 Forbidden)
             } finally {
                 setLoading(false);
@@ -112,6 +112,84 @@ export default function LeadsPage() {
         return () => clearTimeout(timeoutId);
     }, [filterStatus, searchQuery]);
 
+    const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+    const [counselors, setCounselors] = useState<any[]>([]);
+    const [showReassignModal, setShowReassignModal] = useState(false);
+    const [targetCounselor, setTargetCounselor] = useState('');
+
+    useEffect(() => {
+        // Fetch counselors for reassignment
+        async function loadCounselors() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            // Fetch users with role 'counselor' or 'admin'
+            // We'll use the profiles table
+            const { data } = await supabase.from('profiles').select('id, full_name').in('role', ['counselor', 'admin', 'manager']);
+            setCounselors(data || []);
+        }
+        if (canCreateLead) loadCounselors(); // Only load if can manage leads
+    }, [canCreateLead]);
+
+    const toggleSelectAll = () => {
+        if (selectedLeads.length === leads.length) {
+            setSelectedLeads([]);
+        } else {
+            setSelectedLeads(leads.map(l => l.id));
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        if (selectedLeads.includes(id)) {
+            setSelectedLeads(selectedLeads.filter(lid => lid !== id));
+        } else {
+            setSelectedLeads([...selectedLeads, id]);
+        }
+    };
+
+    const handleBulkReassign = async () => {
+        if (!targetCounselor) return;
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            const res = await fetch('/api/v1/pipeline/bulk-assign', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    lead_ids: selectedLeads,
+                    new_owner_id: targetCounselor
+                })
+            });
+
+            if (res.ok) {
+                // Success
+                setShowReassignModal(false);
+                setSelectedLeads([]);
+                // Refresh list
+                const searchParams = new URLSearchParams();
+                if (filterStatus !== 'all') searchParams.append('status', filterStatus);
+                if (searchQuery) searchParams.append('search', searchQuery);
+
+                // Trigger re-fetch logic (simplified by just reloading or calling fetchLeads if accessible)
+                // We'll reload for simplicity or lift fetchLeads out. 
+                // Currently fetchLeads is inside useEffect. We can just force a reload or dependency update.
+                // Let's reload window for now to be safe with state
+                window.location.reload();
+            } else {
+                const errData = await res.json().catch(() => ({ detail: res.statusText }));
+                console.error("Failed to reassign:", res.status, errData);
+                const errMsg = typeof errData.detail === 'object' ? JSON.stringify(errData.detail) : (errData.detail || 'Unknown error');
+                alert(`Failed: ${errMsg}`);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     return (
         <div>
             <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -119,12 +197,27 @@ export default function LeadsPage() {
                     <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginBottom: '4px' }}>Leads</h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Manage and track your admissions pipeline.</p>
                 </div>
-                {canCreateLead && (
-                    <Link href="/leads/new" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Plus size={20} />
-                        Add Lead
-                    </Link>
-                )}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    {selectedLeads.length > 0 && canCreateLead && (
+                        <button
+                            onClick={() => setShowReassignModal(true)}
+                            className="glass-card"
+                            style={{
+                                background: '#4F46E5', color: 'white', border: 'none',
+                                padding: '8px 16px', cursor: 'pointer', fontWeight: 600,
+                                display: 'flex', alignItems: 'center', gap: '8px'
+                            }}
+                        >
+                            Reassign ({selectedLeads.length})
+                        </button>
+                    )}
+                    {canCreateLead && (
+                        <Link href="/leads/new" className="btn-primary" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Plus size={20} />
+                            Add Lead
+                        </Link>
+                    )}
+                </div>
             </header>
 
             {/* Filters & Search Bar */}
@@ -173,6 +266,16 @@ export default function LeadsPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.2)' }}>
+                                {canCreateLead && (
+                                    <th style={{ padding: '16px', width: '40px' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedLeads.length === leads.length && leads.length > 0}
+                                            onChange={toggleSelectAll}
+                                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                        />
+                                    </th>
+                                )}
                                 <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Name</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Status</th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Source</th>
@@ -183,6 +286,16 @@ export default function LeadsPage() {
                         <tbody>
                             {leads.map((lead) => (
                                 <tr key={lead.id} style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
+                                    {canCreateLead && (
+                                        <td style={{ padding: '16px' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedLeads.includes(lead.id)}
+                                                onChange={() => toggleSelect(lead.id)}
+                                                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                                            />
+                                        </td>
+                                    )}
                                     <td style={{ padding: '16px' }}>
                                         <div style={{ fontWeight: 600 }}>{lead.parent_name}</div>
                                         <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>{lead.email || lead.phone}</div>
@@ -204,7 +317,7 @@ export default function LeadsPage() {
                                     <td style={{ padding: '16px' }}>{new Date(lead.created_at).toLocaleDateString()}</td>
                                     <td style={{ padding: '16px' }}>
                                         <Link href={`/leads/${lead.id}`} style={{ color: 'var(--color-accent-primary)', fontSize: '0.9rem', fontWeight: 500 }}>
-                                            View Details
+                                            View
                                         </Link>
                                     </td>
                                 </tr>
@@ -213,6 +326,36 @@ export default function LeadsPage() {
                     </table>
                 )}
             </div>
+
+            {/* Reassign Modal */}
+            {showReassignModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
+                }}>
+                    <div className="glass-card" style={{ width: '400px', padding: '24px', background: '#1F2937' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '16px' }}>Assign to Counselor</h3>
+                        <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                            Reassigning {selectedLeads.length} leads.
+                        </p>
+                        <select
+                            className="glass-input"
+                            style={{ padding: '12px', marginBottom: '24px', background: 'rgba(0,0,0,0.3)' }}
+                            value={targetCounselor}
+                            onChange={(e) => setTargetCounselor(e.target.value)}
+                        >
+                            <option value="">Select Counselor...</option>
+                            {counselors.map(c => (
+                                <option key={c.id} value={c.id}>{c.full_name}</option>
+                            ))}
+                        </select>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                            <button onClick={() => setShowReassignModal(false)} className="btn-secondary">Cancel</button>
+                            <button onClick={handleBulkReassign} className="btn-primary" disabled={!targetCounselor}>Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

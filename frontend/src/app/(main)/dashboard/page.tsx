@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Loader2, Plus, ArrowRight, UserPlus, Users, ListTodo, Calendar, Clock } from 'lucide-react';
+import { Loader2, Plus, ArrowRight, UserPlus, Users, ListTodo, Calendar, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -24,9 +24,9 @@ export default function DashboardPage() {
     const [stats, setStats] = useState(() => {
         if (typeof window !== 'undefined') {
             const cached = localStorage.getItem('dashboard_stats');
-            return cached ? JSON.parse(cached) : { totalLeads: 0, activeTasks: 0, conversionRate: 0 };
+            return cached ? JSON.parse(cached) : { totalLeads: 0, activeTasks: 0, conversionRate: 0, overdueLeads: 0 };
         }
-        return { totalLeads: 0, activeTasks: 0, conversionRate: 0 };
+        return { totalLeads: 0, activeTasks: 0, conversionRate: 0, overdueLeads: 0 };
     });
 
     // Only show loader if we miss critical data
@@ -103,10 +103,38 @@ export default function DashboardPage() {
                 .order('due_date', { ascending: true })
                 .limit(5);
 
+            // Calculate Overdue Leads (Client-side SLA Logic)
+            const { data: allLeads } = await supabase
+                .from('leads')
+                .select('status, last_interaction_at, updated_at');
+
+            let overdueCount = 0;
+            const now = new Date();
+            const slaMap: Record<string, number> = {
+                "new": 24,
+                "attempted_contact": 48,
+                "connected": 72,
+                "visit_scheduled": 168, // 7 days
+                "application_submitted": 72
+            };
+
+            if (allLeads) {
+                allLeads.forEach((lead: any) => {
+                    const limit = slaMap[lead.status];
+                    const dateStr = lead.last_interaction_at || lead.updated_at;
+                    if (limit && dateStr) {
+                        const lastInter = new Date(dateStr);
+                        const diffHours = (now.getTime() - lastInter.getTime()) / (1000 * 60 * 60);
+                        if (diffHours > limit) overdueCount++;
+                    }
+                });
+            }
+
             const newStats = {
                 totalLeads: totalLeads || 0,
                 activeTasks: tasksCount || 0,
-                conversionRate: calculatedRate
+                conversionRate: calculatedRate,
+                overdueLeads: overdueCount
             };
 
             setLeads(leadsData || []);
@@ -176,6 +204,16 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: '#34D399' }}>
                         <Clock size={24} />
+                    </div>
+                </div>
+
+                <div className="glass-card" style={{ padding: '24px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                    <div>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', fontWeight: 500, marginBottom: '8px' }}>Stalled Leads</p>
+                        <h3 style={{ fontSize: '2rem', fontWeight: 700, color: '#F87171' }}>{stats.overdueLeads || 0}</h3>
+                    </div>
+                    <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', color: '#F87171' }}>
+                        <AlertTriangle size={24} />
                     </div>
                 </div>
             </div>

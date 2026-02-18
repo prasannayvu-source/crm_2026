@@ -12,6 +12,7 @@ interface Lead {
     parent_name: string;
     status: string;
     updated_at: string;
+    last_interaction_at: string;
     students?: {
         grade_applying_for: string;
         name: string;
@@ -77,7 +78,7 @@ export default function PipelinePage() {
 
         const { data, error } = await supabase
             .from('leads')
-            .select('id, parent_name, status, updated_at, students(name, grade_applying_for)')
+            .select('id, parent_name, status, updated_at, last_interaction_at, students(name, grade_applying_for)')
             .order('updated_at', { ascending: false });
 
         if (error) {
@@ -188,7 +189,7 @@ export default function PipelinePage() {
         const sla = SLA_HOURS[lead.status];
         if (!sla) return false;
 
-        const lastUpdate = new Date(lead.updated_at).getTime();
+        const lastUpdate = new Date(lead.last_interaction_at || lead.updated_at).getTime();
         const now = new Date().getTime();
         const hoursInStage = (now - lastUpdate) / (1000 * 60 * 60);
 
@@ -323,7 +324,7 @@ export default function PipelinePage() {
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
                                                                     <Clock size={12} />
-                                                                    <span>{new Date(lead.updated_at).toLocaleDateString()}</span>
+                                                                    <span>{new Date(lead.last_interaction_at || lead.updated_at).toLocaleDateString()}</span>
                                                                 </div>
 
                                                                 {isOverdue(lead) && (

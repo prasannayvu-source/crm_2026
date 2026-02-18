@@ -82,6 +82,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         except Exception as e:
             print(f"Error fetching permissions for {role_name}: {e}")
             permissions = {}
+            
+
                 
         print(f"   -> Final Calculated Permissions: {list(permissions.keys())}")
         

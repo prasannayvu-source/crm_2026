@@ -7,6 +7,7 @@ import { LayoutDashboard, Users, LogOut, Loader2, Shield, Kanban, Moon, Sun, Bar
 import { supabase } from '@/lib/supabaseClient';
 import { useEffect, useState } from 'react';
 import { useTheme } from '../theme-provider';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -135,6 +136,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </nav>
 
                 <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid var(--color-border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+                        <NotificationBell />
+                    </div>
+
                     {/* Theme Toggle */}
                     <button
                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

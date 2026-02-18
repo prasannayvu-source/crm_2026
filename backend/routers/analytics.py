@@ -413,12 +413,31 @@ async def get_counselor_performance(
             if lead.get("status") == "enrolled":
                 counselor_data[counselor_id]["enrolled"] += 1
         
+        # Batch fetch counselor names
+        counselor_ids = list(counselor_data.keys())
+        counselor_names = {}
+        if counselor_ids:
+            try:
+                # Use .in_() for array filtering
+                profiles_query = supabase.table("profiles").select("id, full_name").in_("id", counselor_ids).execute()
+                if profiles_query.data:
+                     for profile in profiles_query.data:
+                        counselor_names[profile["id"]] = profile.get("full_name")
+            except Exception as e:
+                print(f"⚠️ Error fetching counselor names: {e}")
+
         performance_data = []
         for counselor_id, data in counselor_data.items():
             rate = (data["enrolled"] / data["total"] * 100) if data["total"] > 0 else 0
+            
+            # Use real name if found, fallback to formatted ID
+            name = counselor_names.get(counselor_id)
+            if not name:
+                 name = f"Counselor {counselor_id[:8]}"
+            
             performance_data.append(CounselorPerformance(
                 counselor_id=counselor_id,
-                counselor_name=f"Counselor {counselor_id[:8]}",
+                counselor_name=name,
                 total_leads=data["total"],
                 interactions_count=0,  # Not tracking interactions for now
                 enrollments=data["enrolled"],

@@ -5,8 +5,6 @@ import { supabase } from '@/lib/supabaseClient';
 import { Loader2, AlertTriangle, TrendingUp, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
 export default function ManagerDashboard() {
     const [summary, setSummary] = useState<any[]>(() => {
         if (typeof window !== 'undefined') {
@@ -15,6 +13,7 @@ export default function ManagerDashboard() {
         }
         return [];
     });
+
     const [agingLeads, setAgingLeads] = useState<any[]>(() => {
         if (typeof window !== 'undefined') {
             const cached = localStorage.getItem('pipeline_aging');
@@ -22,7 +21,16 @@ export default function ManagerDashboard() {
         }
         return [];
     });
-    // Only show loader if we have NO data
+
+    const [counselorPerformance, setCounselorPerformance] = useState<any[]>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('counselor_performance');
+            return cached ? JSON.parse(cached) : [];
+        }
+        return [];
+    });
+
+    // Only show loader if we have NO data in cache
     const [loading, setLoading] = useState(() => {
         if (typeof window !== 'undefined') {
             return !localStorage.getItem('pipeline_summary');
@@ -32,6 +40,7 @@ export default function ManagerDashboard() {
 
     const [authorized, setAuthorized] = useState(false);
     const router = useRouter();
+
     // Use relative path to leverage Next.js proxy
     const API_URL = '/api/v1';
 
@@ -71,9 +80,10 @@ export default function ManagerDashboard() {
                 // 2. Fetch Data (Only if authorized)
                 setLoading(true);
                 try {
-                    const [summaryRes, agingRes] = await Promise.all([
+                    const [summaryRes, agingRes, perfRes] = await Promise.all([
                         fetch(`${API_URL}/pipeline/summary`, { headers: { Authorization: `Bearer ${token}` } }),
-                        fetch(`${API_URL}/pipeline/aging?threshold_days=3`, { headers: { Authorization: `Bearer ${token}` } })
+                        fetch(`${API_URL}/pipeline/aging?threshold_days=3`, { headers: { Authorization: `Bearer ${token}` } }),
+                        fetch(`${API_URL}/analytics/counselor-performance`, { headers: { Authorization: `Bearer ${token}` } })
                     ]);
 
                     if (summaryRes.ok) {
@@ -87,6 +97,13 @@ export default function ManagerDashboard() {
                         setAgingLeads(agingData || []);
                         localStorage.setItem('pipeline_aging', JSON.stringify(agingData));
                     }
+
+                    if (perfRes.ok) {
+                        const perfData = await perfRes.json();
+                        setCounselorPerformance(perfData || []);
+                        localStorage.setItem('counselor_performance', JSON.stringify(perfData));
+                    }
+
                 } catch (err) {
                     console.error('Fetch error:', err);
                     if (summary.length === 0) toast.error('Failed to update dashboard');
@@ -241,7 +258,7 @@ export default function ManagerDashboard() {
                                     </p>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
-                                    <p style={{ fontSize: '0.8rem', color: '#F59E0B', fontWeight: 600 }}>Inacitve Since</p>
+                                    <p style={{ fontSize: '0.8rem', color: '#F59E0B', fontWeight: 600 }}>Inactive Since</p>
                                     <p style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>
                                         {new Date(lead.updated_at).toLocaleDateString()}
                                     </p>
@@ -251,6 +268,51 @@ export default function ManagerDashboard() {
                     </div>
                 )}
             </div>
+
+            {/* Team Performance Section */}
+            <div className="glass-card" style={{ padding: '24px', marginTop: '32px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                    <BarChart2 size={20} color="#10B981" />
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Team Performance</h3>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                                <th style={{ padding: '12px', fontWeight: 600 }}>Counselor</th>
+                                <th style={{ padding: '12px', fontWeight: 600 }}>Total Leads</th>
+                                <th style={{ padding: '12px', fontWeight: 600 }}>Enrollments</th>
+                                <th style={{ padding: '12px', fontWeight: 600 }}>Conversion Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {counselorPerformance.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>No performance data available.</td>
+                                </tr>
+                            ) : (
+                                counselorPerformance.map((c: any) => (
+                                    <tr key={c.counselor_id} style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
+                                        <td style={{ padding: '16px', fontWeight: 500 }}>{c.counselor_name}</td>
+                                        <td style={{ padding: '16px' }}>{c.total_leads}</td>
+                                        <td style={{ padding: '16px', color: '#10B981', fontWeight: 600 }}>{c.enrollments}</td>
+                                        <td style={{ padding: '16px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ width: `${c.conversion_rate}%`, height: '100%', background: '#3B82F6', borderRadius: '3px' }}></div>
+                                                </div>
+                                                <span style={{ fontSize: '0.9rem' }}>{c.conversion_rate}%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     );
 }
