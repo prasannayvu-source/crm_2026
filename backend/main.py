@@ -19,6 +19,10 @@ app.add_middleware(
     max_age=3600,
 )
 
+# Phase 5: Middleware
+from middleware.rate_limit import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware)
+
 # Phase 0-3: Core CRM Routers
 app.include_router(leads.router)
 app.include_router(tasks.router)

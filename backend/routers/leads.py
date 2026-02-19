@@ -3,6 +3,7 @@ from typing import List, Optional
 from database import supabase
 from models import Lead, LeadCreate, StudentCreate
 from dependencies import get_current_user, require_permission
+from services.webhook import webhook_service
 
 router = APIRouter(
     prefix="/api/v1/leads",
@@ -95,6 +96,9 @@ async def create_lead(lead: LeadCreate, user=Depends(require_permission("leads.c
         new_lead["students"] = student_res.data
     else:
         new_lead["students"] = []
+    
+    # 4. Webhook: Lead Created
+    await webhook_service.dispatch_event("lead.created", new_lead)
 
     return new_lead
 
@@ -135,6 +139,11 @@ async def update_lead_status(id: str, status: str, user=Depends(require_permissi
     
     updated_lead = response.data[0]
     
+    # Webhook: Status Changed
+    await webhook_service.dispatch_event("lead.status_changed", updated_lead)
+    if status == "enrolled":
+        await webhook_service.dispatch_event("student.enrolled", updated_lead)
+
     # 2. Log Interaction & History
     try:
         # Log Interaction

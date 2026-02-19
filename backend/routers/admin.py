@@ -11,7 +11,7 @@ from models import (
     UserCreate, UserUpdate, User, UserListResponse, BulkUserAction,
     RoleCreate, RoleUpdate, Role, IntegrationCreate, Integration,
     WebhookCreate, Webhook, APIKeyCreate, APIKey, APIKeyCreateResponse,
-    SystemHealth, AuditLog, AuditLogListResponse, AppSetting
+    SystemHealth, AuditLog, AuditLogListResponse, AppSetting, ArchiveCriteria
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -662,3 +662,113 @@ async def get_audit_log_detail(
         user_agent=log_data.get("user_agent"),
         created_at=datetime.fromisoformat(log_data["created_at"])
     )
+
+# ============================================
+# Phase 5: Integrations & Logs
+# ============================================
+@router.get("/integrations/logs")
+async def get_integration_logs(
+    limit: int = 50, 
+    offset: int = 0, 
+    user=Depends(require_role(["admin"]))
+):
+    """Fetch integration / webhook logs"""
+    supabase = get_db()
+    res = supabase.table("integration_logs") \
+        .select("*", count="exact") \
+        .order("created_at", desc=True) \
+        .limit(limit) \
+        .offset(offset) \
+        .execute()
+        
+    return {"logs": res.data if res.data else [], "count": res.count}
+
+# ============================================
+# Phase 5: Archival
+# ============================================
+
+@router.post("/archive-leads")
+async def archive_leads(criteria: ArchiveCriteria, user=Depends(require_role(["admin"]))):
+    """
+    Archive leads older than X days to leads_archive table 
+    and remove from primary leads table.
+    """
+    supabase = get_db()
+    
+    # Calculate cutoff
+    cutoff = datetime.now() - timedelta(days=criteria.days_older_than)
+    cutoff_str = cutoff.isoformat()
+    
+    # Fetch candidates
+    query = supabase.table("leads").select("*") \
+        .lt("created_at", cutoff_str)
+    
+    if criteria.statuses:
+        query = query.in_("status", criteria.statuses)
+        
+    res = query.execute()
+    leads_to_archive = res.data if res.data else []
+    
+    if not leads_to_archive:
+        return {"message": "No leads match criteria", "count": 0, "dry_run": criteria.dry_run}
+
+    if criteria.dry_run:
+        return {
+            "message": "Dry Run Result", 
+            "count": len(leads_to_archive), 
+            "preview": leads_to_archive[:5]
+        }
+    
+    # Perform Archival
+    archive_entries = []
+    ids_to_delete = []
+    
+    for lead in leads_to_archive:
+        ids_to_delete.append(lead['id'])
+        entry = {
+            "original_lead_id": lead['id'],
+            "parent_name": lead.get('parent_name'),
+            "email": lead.get('email'),
+            "archived_data": lead, 
+            "archived_reason": f"older_than_{criteria.days_older_than}_days",
+            "archived_by": user['id']
+        }
+        archive_entries.append(entry)
+    
+    # Insert Archive Records
+    chunk_size = 100
+    for i in range(0, len(archive_entries), chunk_size):
+        chunk = archive_entries[i:i+chunk_size]
+        try:
+            supabase.table("leads_archive").insert(chunk).execute()
+        except Exception as e:
+            # If insert fails, abort delete? Or log?
+            # For simplicity, we abort delete of this chunk?
+            # But we are iterating in memory.
+            # We'll skip adding to deletion list if insert failed?
+            # Too complex for MVP endpoint.
+            # We'll assume success or HTTPException.
+            # But let's raise so user knows.
+            raise HTTPException(status_code=500, detail=f"Archival failed: {str(e)}")
+        
+    # Delete from Leads
+    deleted_count = 0
+    for i in range(0, len(ids_to_delete), chunk_size):
+        chunk_ids = ids_to_delete[i:i+chunk_size]
+        del_res = supabase.table("leads").delete().in_("id", chunk_ids).execute()
+        deleted_count += len(del_res.data) if del_res.data else 0
+        
+    # Log Audit
+    audit_entry = {
+        "user_id": user['id'],
+        "action": "archived",
+        "resource": "leads",
+        "details": {
+            "count": deleted_count,
+            "cutoff_date": cutoff_str,
+            "statuses": criteria.statuses
+        }
+    }
+    supabase.table("audit_logs").insert(audit_entry).execute()
+        
+    return {"message": "Archival Complete", "count": deleted_count}

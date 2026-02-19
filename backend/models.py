@@ -440,3 +440,8 @@ class AppSetting(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ArchiveCriteria(BaseModel):
+    days_older_than: int
+    statuses: List[str]
+    dry_run: bool = True

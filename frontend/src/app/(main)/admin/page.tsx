@@ -45,6 +45,8 @@ interface AuditLog {
     user_name?: string;
     user_email?: string;
     details?: any;
+    before_data?: any;
+    after_data?: any;
     created_at: string;
 }
 
@@ -56,6 +58,7 @@ export default function AdminPage() {
     const [roles, setRoles] = useState<Role[]>([]);
     const [integrations, setIntegrations] = useState<Integration[]>([]);
     const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+    const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
     const [systemHealth, setSystemHealth] = useState<any>(null);
     const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -303,6 +306,14 @@ export default function AdminPage() {
                     const data = await response.json();
                     setIntegrations(data || []);
                 }
+                // Fetch logs
+                try {
+                    const logRes = await fetch('/api/v1/admin/integrations/logs?limit=10', { headers });
+                    if (logRes.ok) {
+                        const logData = await logRes.json();
+                        setWebhookLogs(logData.logs || []);
+                    }
+                } catch (e) { console.error(e); }
             } else if (activeTab === 'health') {
                 const response = await fetch('/api/v1/admin/health', { headers });
                 if (response.ok) {
@@ -781,8 +792,59 @@ export default function AdminPage() {
                                 <button className="secondary-btn" onClick={() => setIntegrationModal({ isOpen: true, type: 'api keys' })}>Manage</button>
                             </div>
                         </div>
+
+                        {/* Logs Section */}
+                        <div style={{ marginTop: '32px', borderTop: '1px solid #374151', paddingTop: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <h3 style={{ color: 'white', fontSize: '16px', fontWeight: 600 }}>Recent Activity</h3>
+                                <button onClick={() => fetchData()} style={{ background: 'none', border: 'none', color: '#60A5FA', cursor: 'pointer', fontSize: '12px' }}>Refresh</button>
+                            </div>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid #374151', color: '#9CA3AF', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            <th style={{ padding: '12px 0' }}>Time</th>
+                                            <th style={{ padding: '12px 0' }}>Event</th>
+                                            <th style={{ padding: '12px 0' }}>Status</th>
+                                            <th style={{ padding: '12px 0' }}>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {webhookLogs.length === 0 ? (
+                                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: '#6B7280', fontSize: '13px' }}>No logs recorded yet.</td></tr>
+                                        ) : (
+                                            webhookLogs.map((log: any) => (
+                                                <tr key={log.id} style={{ borderBottom: '1px solid #1F2937', color: '#D1D5DB', fontSize: '13px' }}>
+                                                    <td style={{ padding: '12px 0', color: '#6B7280', whiteSpace: 'nowrap' }}>{new Date(log.created_at).toLocaleString()}</td>
+                                                    <td style={{ padding: '12px 0' }}>
+                                                        <span style={{ backgroundColor: '#1F2937', padding: '2px 6px', borderRadius: '4px', border: '1px solid #374151', fontSize: '11px', color: '#E5E7EB' }}>
+                                                            {log.event_name}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '12px 0' }}>
+                                                        <span style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                            color: log.status === 'success' ? '#34D399' : log.status === 'failed' ? '#F87171' : '#FBBF24',
+                                                            fontSize: '12px', fontWeight: 500
+                                                        }}>
+                                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'currentColor' }}></span>
+                                                            {log.status.charAt(0).toUpperCase() + log.status.slice(1)}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '12px 0', color: '#9CA3AF', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {log.response_status ? `HTTP ${log.response_status}` : ''} {log.response_body ? `- ${log.response_body.slice(0, 50)}` : ''}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 );
+
+
 
             case 'health':
                 return (
