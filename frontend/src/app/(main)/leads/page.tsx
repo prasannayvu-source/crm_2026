@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { Loader2, Plus, Search, Filter } from 'lucide-react';
+import { Loader2, Plus, Search, Filter, ArrowUpDown } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LeadsPage() {
@@ -26,6 +26,24 @@ export default function LeadsPage() {
     const statuses = ['new', 'attempted_contact', 'connected', 'visit_scheduled', 'application_submitted', 'enrolled', 'lost'];
     const [searchQuery, setSearchQuery] = useState('');
     const [canCreateLead, setCanCreateLead] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(10);
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'created_at', direction: 'desc' });
+
+    const handleSort = (key: string) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc'
+        }));
+    };
+
+    const sortedLeads = [...leads].sort((a, b) => {
+        const aVal = a[sortConfig.key] || '';
+        const bVal = b[sortConfig.key] || '';
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+    });
 
     useEffect(() => {
         async function checkPermission() {
@@ -64,7 +82,7 @@ export default function LeadsPage() {
                 if (filterStatus !== 'all') params.append('status', filterStatus);
                 if (searchQuery) params.append('search', searchQuery);
 
-                const response = await fetch(`http://localhost:8000/api/v1/leads/?${params.toString()}`, {
+                const response = await fetch(`http://127.0.0.1:8000/api/v1/leads/?${params.toString()}`, {
                     headers: {
                         'Authorization': `Bearer ${session.access_token}`
                     }
@@ -107,6 +125,7 @@ export default function LeadsPage() {
         // Debounce search
         const timeoutId = setTimeout(() => {
             fetchLeads();
+            setVisibleCount(10);
         }, 500);
 
         return () => clearTimeout(timeoutId);
@@ -276,15 +295,31 @@ export default function LeadsPage() {
                                         />
                                     </th>
                                 )}
-                                <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Name</th>
-                                <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Status</th>
-                                <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Source</th>
-                                <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Date Added</th>
+                                <th onClick={() => handleSort('parent_name')} style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        Name <ArrowUpDown size={14} />
+                                    </div>
+                                </th>
+                                <th onClick={() => handleSort('status')} style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        Status <ArrowUpDown size={14} />
+                                    </div>
+                                </th>
+                                <th onClick={() => handleSort('source')} style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        Source <ArrowUpDown size={14} />
+                                    </div>
+                                </th>
+                                <th onClick={() => handleSort('created_at')} style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        Date Added <ArrowUpDown size={14} />
+                                    </div>
+                                </th>
                                 <th style={{ padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {leads.map((lead) => (
+                            {sortedLeads.slice(0, visibleCount).map((lead) => (
                                 <tr key={lead.id} style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}>
                                     {canCreateLead && (
                                         <td style={{ padding: '16px' }}>
@@ -324,6 +359,28 @@ export default function LeadsPage() {
                             ))}
                         </tbody>
                     </table>
+                )}
+                {leads.length > visibleCount && (
+                    <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', borderTop: '1px solid var(--color-border)' }}>
+                        <button
+                            onClick={() => setVisibleCount(prev => prev + 10)}
+                            style={{
+                                padding: '8px 24px',
+                                fontSize: '0.9rem',
+                                color: 'var(--color-accent-primary)',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px dashed rgba(59, 130, 246, 0.3)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'background 0.2s',
+                                fontWeight: 500
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                        >
+                            Show More ({leads.length - visibleCount} remaining)
+                        </button>
+                    </div>
                 )}
             </div>
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from database import supabase
-from models import Task, TaskCreate
+from models import Task, TaskCreate, TaskUpdate
 from dependencies import get_current_user
 
 router = APIRouter(
@@ -33,6 +33,16 @@ async def create_task(task: TaskCreate, user=Depends(get_current_user)):
     response = supabase.table("tasks").insert(task_data).execute()
     if not response.data:
         raise HTTPException(status_code=400, detail="Failed to create task")
+        
+    return response.data[0]
+
+@router.patch("/{id}", response_model=Task)
+async def update_task(id: str, task: TaskUpdate, user=Depends(get_current_user)):
+    data = task.dict(exclude_unset=True)
+    response = supabase.table("tasks").update(data).eq("id", id).execute()
+    
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Task not found")
         
     return response.data[0]
 

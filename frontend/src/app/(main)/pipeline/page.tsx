@@ -154,7 +154,7 @@ export default function PipelinePage() {
         // API Call via Backend to trigger automations (Tasks, Interactions)
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
         try {
             const response = await fetch(`${API_URL}/api/v1/leads/${draggableId}/status?status=${destination.droppableId}`, {

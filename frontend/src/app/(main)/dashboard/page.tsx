@@ -38,6 +38,7 @@ export default function DashboardPage() {
     });
 
     const [canCreateLead, setCanCreateLead] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<any>(null);
 
     useEffect(() => {
         async function checkPermission() {
@@ -45,7 +46,7 @@ export default function DashboardPage() {
             if (!session) return;
 
             try {
-                const res = await fetch('http://localhost:8000/api/v1/auth/me', {
+                const res = await fetch('http://127.0.0.1:8000/api/v1/auth/me', {
                     headers: { Authorization: `Bearer ${session.access_token}` }
                 });
                 if (res.status === 401) {
@@ -237,7 +238,7 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {leads.map(lead => (
+                            {leads.map((lead: any) => (
                                 <div key={lead.id} style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -287,7 +288,7 @@ export default function DashboardPage() {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {tasks.map(task => (
+                            {tasks.map((task: any) => (
                                 <div key={task.id} style={{
                                     padding: '16px',
                                     borderRadius: '12px',
@@ -295,44 +296,17 @@ export default function DashboardPage() {
                                     border: '1px solid var(--color-border)',
                                     display: 'flex',
                                     alignItems: 'flex-start',
-                                    gap: '12px'
-                                }}>
+                                    gap: '12px',
+                                    cursor: 'default',
+                                    transition: 'background 0.2s'
+                                }}
+                                    className="task-card"
+                                >
+                                    {/* Task Content - Click to Edit */}
                                     <div
-                                        onClick={async () => {
-                                            const { error } = await supabase
-                                                .from('tasks')
-                                                .update({ status: 'completed' })
-                                                .eq('id', task.id);
-
-                                            if (!error) {
-                                                setTasks((prev: any[]) => prev.filter(t => t.id !== task.id));
-                                                // Update stats count
-                                                setStats((prev: any) => ({ ...prev, activeTasks: prev.activeTasks - 1 }));
-                                                toast.success("Task completed!");
-                                            }
-                                        }}
-                                        style={{
-                                            marginTop: '2px',
-                                            width: '18px',
-                                            height: '18px',
-                                            borderRadius: '4px',
-                                            border: '2px solid var(--color-text-secondary)',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onMouseOver={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-accent-secondary)';
-                                            e.currentTarget.style.background = 'rgba(34, 197, 94, 0.2)';
-                                        }}
-                                        onMouseOut={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-text-secondary)';
-                                            e.currentTarget.style.background = 'transparent';
-                                        }}
-                                    ></div>
-                                    <div>
+                                        style={{ flex: 1, cursor: 'pointer' }}
+                                        onClick={() => setSelectedTask({ ...task })}
+                                    >
                                         <p style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: '4px' }}>{task.title}</p>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
                                             <Calendar size={12} />
@@ -346,6 +320,128 @@ export default function DashboardPage() {
                 </div>
 
             </div>
+
+            {/* Task Details Modal */}
+            {selectedTask && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
+                }} onClick={() => setSelectedTask(null)}>
+                    <div
+                        className="glass-card"
+                        style={{ width: '500px', padding: '32px', background: '#1F2937', position: 'relative' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '16px' }}>{selectedTask.title}</h3>
+
+                        <div style={{ marginBottom: '24px' }}>
+                            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>DESCRIPTION</p>
+                            <textarea
+                                className="glass-input"
+                                style={{ width: '100%', minHeight: '100px', resize: 'vertical' }}
+                                value={selectedTask.description || ''}
+                                onChange={(e) => setSelectedTask({ ...selectedTask, description: e.target.value })}
+                                placeholder="Add a description..."
+                            />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+                            <div>
+                                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', marginBottom: '4px', fontWeight: 600 }}>DUE DATE</p>
+                                <input
+                                    type="date"
+                                    className="glass-input"
+                                    value={selectedTask.due_date ? new Date(selectedTask.due_date).toISOString().split('T')[0] : ''}
+                                    onChange={(e) => setSelectedTask({ ...selectedTask, due_date: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8rem', marginBottom: '4px', fontWeight: 600 }}>STATUS</p>
+                                <select
+                                    className="glass-input"
+                                    value={selectedTask.status}
+                                    onChange={(e) => setSelectedTask({ ...selectedTask, status: e.target.value })}
+                                >
+                                    <option value="pending">Pending</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                            <button
+                                onClick={() => setSelectedTask(null)}
+                                className="btn-secondary"
+                            >
+                                Cancel
+                            </button>
+                            {/* Save Changes Button */}
+                            <button
+                                onClick={async () => {
+                                    // Handle empty date string by converting to null
+                                    const updateData = {
+                                        description: selectedTask.description,
+                                        due_date: selectedTask.due_date || null,
+                                        status: selectedTask.status
+                                    };
+
+                                    const { data, error } = await supabase
+                                        .from('tasks')
+                                        .update(updateData)
+                                        .eq('id', selectedTask.id)
+                                        .select();
+
+                                    if (!error && data && data.length > 0) {
+                                        const updatedTask = data[0];
+                                        // Update UI with the real object from DB
+                                        setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+
+                                        // If status is completed, remove from dashboard list
+                                        if (updatedTask.status === 'completed') {
+                                            setTasks(prev => prev.filter(t => t.id !== updatedTask.id));
+                                            setStats((prev: any) => ({ ...prev, activeTasks: Math.max(0, prev.activeTasks - 1) }));
+                                        }
+
+                                        toast.success("Task updated!");
+                                        setSelectedTask(null);
+                                    } else {
+                                        console.error("Supabase Error:", error);
+                                        toast.error(error?.message || "Failed to update task");
+                                    }
+                                }}
+                                className="btn-primary"
+                            >
+                                Save Changes
+                            </button>
+                            {/* Mark Complete Shortcut */}
+                            {selectedTask.status !== 'completed' && (
+                                <button
+                                    onClick={async () => {
+                                        const { error } = await supabase
+                                            .from('tasks')
+                                            .update({ status: 'completed' })
+                                            .eq('id', selectedTask.id);
+
+                                        if (!error) {
+                                            setTasks(prev => prev.filter(t => t.id !== selectedTask.id));
+                                            setStats((prev: any) => ({ ...prev, activeTasks: Math.max(0, prev.activeTasks - 1) }));
+                                            toast.success("Task completed!");
+                                            setSelectedTask(null);
+                                        } else {
+                                            toast.error("Failed to complete");
+                                        }
+                                    }}
+                                    className="btn-primary"
+                                    style={{ background: '#10B981', borderColor: '#059669' }}
+                                >
+                                    Mark Complete
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

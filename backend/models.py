@@ -65,8 +65,10 @@ class LeadUpdate(BaseModel):
 
 class TaskStatus(str, Enum):
     pending = "pending"
+    in_progress = "in_progress"
     completed = "completed"
     cancelled = "cancelled"
+    overdue = "overdue"
 
 class TaskBase(BaseModel):
     title: str

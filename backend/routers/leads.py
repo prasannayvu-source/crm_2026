@@ -36,7 +36,7 @@ async def get_leads(
     # IF you have "leads.view_all", you can view ALL.
     
     # 1. Start query
-    query = supabase.table("leads").select("*, students(*)")
+    query = supabase.table("leads").select("*, students(*)").order("created_at", desc=True)
 
     # 2. Permission Scoping
     if not can_view_all:
