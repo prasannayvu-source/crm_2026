@@ -940,7 +940,7 @@ export default function AdminPage() {
                     }
                     return (
                         <div className="flex flex-col">
-                            <span className="text-gray-300 font-medium">{log.action === 'created' ? 'Created' : 'Updated'} User Profile</span>
+                            <span className="text-gray-300 font-medium">Updated User Profile</span>
                             <span className="text-gray-500 text-xs">Target: {email}</span>
                             {changes.length > 0 && <span className="text-gray-500 text-xs italic mt-0.5">{changes.join(', ')}</span>}
                         </div>
