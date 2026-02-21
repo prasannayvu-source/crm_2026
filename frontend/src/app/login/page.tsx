@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+// Inner component — uses useSearchParams(), must be inside <Suspense>
+function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [email, setEmail] = useState("");
@@ -347,5 +348,14 @@ export default function LoginPage() {
                 <a href="#" style={{ color: '#9CA3AF' }}>Terms of Service</a>
             </div>
         </div>
+    );
+}
+
+// Default export wraps LoginContent in Suspense (required by Next.js for useSearchParams)
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div style={{ minHeight: '100vh', background: '#030712' }} />}>
+            <LoginContent />
+        </Suspense>
     );
 }

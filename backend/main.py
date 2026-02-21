@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from database import get_db
 from dependencies import require_role, get_current_user
@@ -10,9 +11,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Build allowed origins: always include local dev origins,
+# plus any production URLs from the ALLOWED_ORIGINS environment variable
+_default_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+_env_origins = os.getenv("ALLOWED_ORIGINS", "")
+_extra_origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
+allowed_origins = list(set(_default_origins + _extra_origins))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],  # Specific origins for credentials support
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

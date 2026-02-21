@@ -119,9 +119,11 @@ export default function AnalyticsPage() {
             console.log('🚀 Analytics: Starting fetch...');
             const overallStart = performance.now();
 
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
             // 🚀 ULTRA-FAST: Fetch ALL data in a single API call!
             const fetchStart = performance.now();
-            const response = await fetch(`http://127.0.0.1:8000/api/v1/analytics/dashboard?${queryString}`, { headers });
+            const response = await fetch(`${API_URL}/api/v1/analytics/dashboard?${queryString}`, { headers });
 
             const fetchTime = performance.now() - fetchStart;
             console.log(`⚡ Dashboard API call completed in ${fetchTime.toFixed(0)}ms`);

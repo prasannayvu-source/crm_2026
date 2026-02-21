@@ -29,6 +29,8 @@ export default function NewLeadPage() {
         loadSettings();
     }, []);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
     useEffect(() => {
         const fetchUser = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -38,7 +40,7 @@ export default function NewLeadPage() {
             }
 
             // Check permission
-            const res = await fetch('http://127.0.0.1:8000/api/v1/auth/me', {
+            const res = await fetch(`${API_URL}/api/v1/auth/me`, {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
             if (res.ok) {
@@ -52,7 +54,7 @@ export default function NewLeadPage() {
             }
         };
         fetchUser();
-    }, [router]);
+    }, [router, API_URL]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -66,7 +68,7 @@ export default function NewLeadPage() {
         }
 
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/v1/leads/', {
+            const response = await fetch(`${API_URL}/api/v1/leads/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

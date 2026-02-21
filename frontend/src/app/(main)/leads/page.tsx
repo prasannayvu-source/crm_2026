@@ -65,6 +65,8 @@ export default function LeadsPage() {
         checkPermission();
     }, []);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
     useEffect(() => {
         const fetchLeads = async () => {
             if (leads.length === 0) setLoading(true);
@@ -82,7 +84,7 @@ export default function LeadsPage() {
                 if (filterStatus !== 'all') params.append('status', filterStatus);
                 if (searchQuery) params.append('search', searchQuery);
 
-                const response = await fetch(`http://127.0.0.1:8000/api/v1/leads/?${params.toString()}`, {
+                const response = await fetch(`${API_URL}/api/v1/leads/?${params.toString()}`, {
                     headers: {
                         'Authorization': `Bearer ${session.access_token}`
                     }

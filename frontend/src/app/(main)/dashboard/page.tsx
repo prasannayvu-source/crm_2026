@@ -40,13 +40,15 @@ export default function DashboardPage() {
     const [canCreateLead, setCanCreateLead] = useState(false);
     const [selectedTask, setSelectedTask] = useState<any>(null);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
     useEffect(() => {
         async function checkPermission() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
             try {
-                const res = await fetch('http://127.0.0.1:8000/api/v1/auth/me', {
+                const res = await fetch(`${API_URL}/api/v1/auth/me`, {
                     headers: { Authorization: `Bearer ${session.access_token}` }
                 });
                 if (res.status === 401) {
